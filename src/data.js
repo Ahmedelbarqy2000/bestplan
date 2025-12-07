@@ -1,5 +1,5 @@
 const planData = [ 
-[
+
   {
     "date": "2026-01-01",
     "phaseId": 1,
