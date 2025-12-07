@@ -20984,7 +20984,7 @@ const planData = [
     "monthGoal": "هدف المرحلة: إكمال جزء بارز من Career Prep + Capstone خلال الفترة المخصصة",
     "stopPoint": "توقف بعد الجزء/الفيديو رقم 1 أو بعد 108 دقيقة من الدرس. (راجع الملاحظات قبل المتابعة غدًا)"
   }
-]
+
 ];
 
 export default planData;  
