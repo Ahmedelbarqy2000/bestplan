@@ -6,15 +6,19 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        rpg: {
-          dark: '#0f0f0f',
-          panel: '#1a1a1a',
-          accent: '#7c3aed',
-          text: '#e5e5e5'
+        hunter: {
+          dark: '#0b0c10',
+          card: '#1f2833',
+          green: '#66fcf1',
+          dimGreen: '#45a29e',
+          red: '#ff003c' // للـ Boss Fights
         }
       },
       fontFamily: {
-        'game': ['Segoe UI', 'Roboto', 'sans-serif'],
+        'anime': ['Segoe UI', 'Roboto', 'sans-serif'],
+      },
+      animation: {
+        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
       }
     },
   },
