@@ -49,36 +49,31 @@ const App = () => {
   const [activeEpisode, setActiveEpisode] = useState(null);
   const [ambush, setAmbush] = useState(null);
   const [isDungeonActive, setIsDungeonActive] = useState(false);
-  const [timer, setTimer] = useState(25 * 60); // 25 min pomodoro
+  const [timer, setTimer] = useState(25 * 60);
 
   const todayStr = new Date().toISOString().split('T')[0];
 
-  // --- STARTUP LOGIC (THE AMBUSH) ---
   useEffect(() => {
-    // 30% chance of ambush on login if not done today
     if (progress.lastLogin !== todayStr && Math.random() < 0.3) {
       const randomQ = AMBUSH_QUESTIONS[Math.floor(Math.random() * AMBUSH_QUESTIONS.length)];
       setAmbush(randomQ);
     }
   }, []);
 
-  // --- HELPERS ---
   const currentRank = RANKS.slice().reverse().find(r => progress.xp >= r.minXP) || RANKS[0];
   
-  // Calculate next unwatched episode (respecting delay offset)
   const getHeroEpisode = () => {
     return planData.find(ep => !progress.completed.includes(ep.date)) || planData[planData.length - 1];
   };
   const heroEpisode = getHeroEpisode();
 
-  // The Oracle Algorithm
   const calculateETA = () => {
     const totalHours = planData.reduce((acc, curr) => acc + (curr.hoursPlanned || 0), 0);
-    const completedHours = progress.focusHours || 1; // Avoid division by zero
+    const completedHours = progress.focusHours || 1;
     const daysPassed = progress.completed.length || 1;
     
-    const velocity = completedHours / daysPassed; // Hours per day actual
-    const remainingHours = totalHours - (progress.xp / 100); // Rough estimate
+    const velocity = completedHours / daysPassed; 
+    const remainingHours = totalHours - (progress.xp / 100); 
     const daysLeft = remainingHours / (velocity || 1);
     
     const date = new Date();
@@ -86,16 +81,13 @@ const App = () => {
     return date.toDateString();
   };
 
-  // --- ACTIONS ---
   const handleComplete = (date, plannedHours, actualFocusTime) => {
     if (progress.completed.includes(date)) return;
 
-    // Calculate XP
     const baseXP = plannedHours * 100;
     const bonusXP = actualFocusTime > 0 ? 100 : 0;
     const totalXP = baseXP + bonusXP;
 
-    // Update Skills based on Phase
     const episode = planData.find(e => e.date === date);
     const skillType = SKILLS_MAP[episode.phaseId] || "Coding";
     
@@ -110,13 +102,11 @@ const App = () => {
       }
     };
 
-    // Streak Logic
     if (newProgress.lastLogin !== todayStr) {
       newProgress.streak += 1;
       newProgress.lastLogin = todayStr;
     }
 
-    // Check for Projects (Inventory)
     if (episode.lessonTitle.includes("Project") || episode.lessonTitle.includes("Capstone")) {
       newProgress.inventory.push(episode.lessonTitle);
     }
@@ -127,7 +117,7 @@ const App = () => {
   };
 
   const handleTimeWarp = () => {
-    const confirm = window.confirm("هل كنت مريضاً؟ سيتم ترحيل الجدول يومين للأمام.");
+    const confirm = window.confirm("هل تريد ترحيل الخطة؟ سيتم إزاحة التواريخ يومين للأمام.");
     if(confirm) {
       const newProgress = { ...progress, delayOffset: progress.delayOffset + 2 };
       setProgress(newProgress);
@@ -148,13 +138,16 @@ const App = () => {
     setAmbush(null);
   };
 
-  // --- VIEWS COMPONENTS ---
+  const getProgressPercent = () => {
+    return Math.round((progress.completed.length / planData.length) * 100);
+  };
+
+  // --- COMPONENTS ---
 
   const Dashboard = () => (
-    <div className="pb-20">
-      {/* Hero */}
+    <div>
       <div className="relative h-[60vh] flex flex-col justify-end p-6 bg-gradient-to-t from-[#141414] via-black/50 to-gray-900/50">
-        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=1000&auto=format&fit=crop')] bg-cover bg-center -z-10 opacity-40" />
+        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1555066931-4365d14bab8c?q=80&w=1000&auto=format&fit=crop')] bg-cover bg-center -z-10 opacity-30" />
         
         <span className="text-red-500 font-bold tracking-widest text-xs uppercase mb-2">Next Mission</span>
         <h1 className="text-4xl md:text-6xl font-black mb-4 leading-tight">{heroEpisode.lessonTitle}</h1>
@@ -168,26 +161,24 @@ const App = () => {
             <Play fill="black" size={20} /> Continue
           </button>
           <button onClick={() => setView('map')} className="bg-gray-700/80 text-white px-6 py-3 rounded font-bold hover:bg-gray-600 transition">
-             World Map
+             Map
           </button>
         </div>
       </div>
 
-      {/* The Oracle Section */}
       <div className="p-6 bg-gray-900 border-y border-gray-800 flex justify-between items-center">
         <div>
            <h3 className="text-purple-400 font-bold text-sm uppercase flex items-center gap-2">
-             <Brain size={16}/> The Oracle Prediction
+             <Brain size={16}/> Oracle Prediction
            </h3>
-           <p className="text-gray-400 text-xs mt-1">Based on your velocity</p>
+           <p className="text-gray-400 text-xs mt-1">Based on velocity</p>
         </div>
         <div className="text-right">
            <p className="text-2xl font-bold text-white">{calculateETA()}</p>
-           <p className="text-xs text-gray-500">Estimated Completion</p>
+           <p className="text-xs text-gray-400">Estimated Finish</p>
         </div>
       </div>
 
-      {/* Seasons */}
       <div className="p-6 space-y-8">
         {[...new Set(planData.map(p => p.phaseId))].map(phaseId => {
           const episodes = planData.filter(e => e.phaseId === phaseId);
@@ -234,7 +225,6 @@ const App = () => {
         interval = setInterval(() => setTimeLeft(t => t - 1), 1000);
       } else if (timeLeft === 0) {
         setTimerRunning(false);
-        // Play gong sound here
       }
       return () => clearInterval(interval);
     }, [timerRunning, timeLeft]);
@@ -254,7 +244,6 @@ const App = () => {
             <h1 className="text-3xl font-bold mb-2">{activeEpisode.lessonTitle}</h1>
             <p className="text-gray-400 mb-6">{activeEpisode.dayGoal}</p>
             
-            {/* Focus Dungeon */}
             <div className={`p-6 rounded-xl border mb-6 text-center transition-colors ${timerRunning ? 'bg-red-900/20 border-red-500' : 'bg-gray-900 border-gray-700'}`}>
               <h3 className="text-xl font-bold mb-4 flex justify-center items-center gap-2">
                 <Sword size={24} /> Focus Dungeon
@@ -282,11 +271,11 @@ const App = () => {
 
           <div className="flex flex-col justify-end">
              <div className="bg-yellow-900/20 p-4 rounded border border-yellow-700/50 mb-6">
-               <span className="text-yellow-500 font-bold block mb-1">CLIFFHANGER (Stop Here):</span>
-               <p className="text-sm text-gray-300">{activeEpisode.stopPoint || "Complete the unit."}</p>
+               <span className="text-yellow-500 font-bold block mb-1">CLIFFHANGER:</span>
+               <p className="text-sm text-gray-300">{activeEpisode.stopPoint || "End of Unit."}</p>
              </div>
              
-             <a href={activeEpisode.resourceURL} target="_blank" className="w-full bg-white text-black font-bold py-3 rounded text-center mb-3">
+             <a href={activeEpisode.resourceURL} target="_blank" rel="noreferrer" className="w-full bg-white text-black font-bold py-3 rounded text-center mb-3">
                Open Resources
              </a>
              <button 
@@ -305,20 +294,17 @@ const App = () => {
     <div className="min-h-screen bg-gray-900 p-6 flex flex-col items-center justify-center">
       <h2 className="text-2xl font-black text-white mb-8">HUNTER LICENSE</h2>
       
-      {/* Flip Card Container */}
       <div className="flip-card w-full max-w-sm h-96">
         <div className="flip-card-inner">
           
-          {/* FRONT */}
           <div className="flip-card-front bg-gradient-to-br from-blue-900 to-black border-2 border-blue-500 rounded-xl p-6 flex flex-col justify-between shadow-2xl shadow-blue-900/50">
             <div className="flex justify-between items-start">
                <div className="text-left">
-                  <h3 className="text-3xl font-black text-white">AHMED</h3>
+                  <h3 className="text-3xl font-black text-white">HUNTER</h3>
                   <p className="text-blue-400 font-mono text-sm uppercase">{currentRank.name}</p>
                </div>
-               <div className="w-16 h-16 bg-gray-700 rounded-full border-2 border-white">
-                  {/* Placeholder for Avatar */}
-                  <div className="w-full h-full flex items-center justify-center text-2xl">👨‍💻</div>
+               <div className="w-16 h-16 bg-gray-700 rounded-full border-2 border-white flex items-center justify-center text-2xl">
+                  👨‍💻
                </div>
             </div>
             
@@ -328,15 +314,15 @@ const App = () => {
                  <span className="text-white font-bold">{currentRank.class}</span>
                </div>
                <div className="bg-black/30 p-2 rounded">
-                 <span className="text-gray-400 text-xs block">SPECIAL ABILITY</span>
+                 <span className="text-gray-400 text-xs block">ABILITY</span>
                  <span className="text-white font-bold">Copy/Paste Jutsu</span>
                </div>
             </div>
 
             <div className="flex justify-between items-end">
                <div className="text-left">
-                  <span className="text-6xl font-black text-white/10 absolute bottom-4 left-4">OSSU</span>
-                  <span className="relative text-white font-mono">{progress.xp} XP</span>
+                  <span className="text-5xl font-black text-white/10 absolute bottom-4 left-4">OSSU</span>
+                  <span className="relative text-white font-mono text-xl">{progress.xp} XP</span>
                </div>
                <div className="flex gap-1">
                  {[...Array(Math.min(5, progress.inventory.length))].map((_, i) => (
@@ -346,7 +332,6 @@ const App = () => {
             </div>
           </div>
 
-          {/* BACK */}
           <div className="flip-card-back bg-gray-800 border-2 border-gray-600 rounded-xl p-6 flex flex-col justify-center">
              <h3 className="text-xl font-bold mb-4 text-gray-300">Skill Matrix</h3>
              <div className="space-y-3">
@@ -367,9 +352,7 @@ const App = () => {
 
         </div>
       </div>
-      
-      <p className="text-gray-500 mt-8 text-sm">Tap card to flip for stats</p>
-      <button onClick={() => setView('dashboard')} className="mt-4 text-white underline">Back</button>
+      <p className="text-gray-500 mt-8 text-sm">Tap card to flip</p>
     </div>
   );
 
@@ -378,19 +361,18 @@ const App = () => {
     
     return (
       <div className="min-h-screen bg-black p-6">
-        <button onClick={() => setView('dashboard')} className="mb-6 text-gray-400">← Back</button>
         <h1 className="text-3xl font-bold mb-8">Performance Analytics</h1>
 
         <div className="grid gap-6">
            <div className="bg-gray-900 p-6 rounded-xl border border-gray-800">
-             <h3 className="text-gray-400 text-sm uppercase mb-2">Ambush Survival Rate</h3>
+             <h3 className="text-gray-400 text-sm uppercase mb-2">Ambush Success Rate</h3>
              <div className="text-4xl font-bold text-white mb-2">{successRate}%</div>
              <p className="text-xs text-gray-500">Based on random interview questions.</p>
              {successRate < 50 && <p className="text-red-500 text-sm mt-2">⚠️ You need to review basic concepts!</p>}
            </div>
 
            <div className="bg-gray-900 p-6 rounded-xl border border-gray-800">
-             <h3 className="text-gray-400 text-sm uppercase mb-2">Inventory (Projects)</h3>
+             <h3 className="text-gray-400 text-sm uppercase mb-2">Artifacts (Projects)</h3>
              <div className="flex flex-wrap gap-2">
                 {progress.inventory.length === 0 && <span className="text-gray-600 italic">No artifacts found. Go code something!</span>}
                 {progress.inventory.map((item, i) => (
@@ -400,7 +382,7 @@ const App = () => {
            </div>
 
            <div className="bg-gray-900 p-6 rounded-xl border border-gray-800">
-             <h3 className="text-gray-400 text-sm uppercase mb-2">The Oracle Advice</h3>
+             <h3 className="text-gray-400 text-sm uppercase mb-2">Oracle Advice</h3>
              <div className="text-gray-300 text-sm leading-relaxed">
                {progress.xp < 10000 
                   ? "You are still a Novice. Focus on consistency rather than speed. Don't skip the Math!" 
@@ -415,11 +397,9 @@ const App = () => {
   const WorldMap = () => (
     <div className="min-h-screen bg-[#0a0a0a] text-white p-4">
        <div className="flex justify-between items-center mb-6">
-         <button onClick={() => setView('dashboard')} className="text-gray-400">← Exit Map</button>
          <h2 className="font-bold text-xl">World Map</h2>
        </div>
 
-       {/* Heatmap Simulation */}
        <div className="bg-gray-900 p-4 rounded-lg mb-8 overflow-x-auto">
          <h3 className="text-xs font-bold text-gray-500 mb-2">ACTIVITY LOG</h3>
          <div className="flex gap-1 min-w-max">
@@ -429,7 +409,6 @@ const App = () => {
          </div>
        </div>
 
-       {/* Time Warp */}
        <div className="bg-red-900/20 border border-red-900 p-4 rounded-lg mb-8 flex justify-between items-center">
           <div>
             <h3 className="font-bold text-red-500">Reality Shift</h3>
@@ -440,9 +419,8 @@ const App = () => {
           </button>
        </div>
 
-       {/* Full List */}
        <div className="space-y-4">
-         {planData.map((ep, i) => {
+         {planData.slice(0, 50).map((ep, i) => { 
            const isDone = progress.completed.includes(ep.date);
            return (
              <div key={i} className={`flex items-center gap-4 p-3 rounded ${isDone ? 'bg-gray-900 opacity-50' : 'bg-gray-800'}`}>
@@ -458,7 +436,6 @@ const App = () => {
     </div>
   );
 
-  // --- AMBUSH MODAL ---
   if (ambush) {
     return (
       <div className="fixed inset-0 bg-black/95 z-[999] flex items-center justify-center p-6">
@@ -487,31 +464,54 @@ const App = () => {
     );
   }
 
-  // --- ROUTING ---
+// --- ROUTING ---
   return (
-    <>
-      {/* Navigation Bar (Mobile) */}
-      <div className="fixed bottom-0 w-full bg-black border-t border-gray-800 flex justify-around p-3 z-50 text-xs font-bold text-gray-500">
-        <button onClick={() => setView('dashboard')} className={`${view === 'dashboard' ? 'text-red-500' : ''} flex flex-col items-center`}>
-           <Play size={20} /> Home
-        </button>
-        <button onClick={() => setView('map')} className={`${view === 'map' ? 'text-red-500' : ''} flex flex-col items-center`}>
-           <Map size={20} /> Map
-        </button>
-        <button onClick={() => setView('license')} className={`${view === 'license' ? 'text-red-500' : ''} flex flex-col items-center`}>
-           <CheckCircle size={20} /> License
-        </button>
-        <button onClick={() => setView('analytics')} className={`${view === 'analytics' ? 'text-red-500' : ''} flex flex-col items-center`}>
-           <BarChart2 size={20} /> Stats
-        </button>
+    <main className="min-h-screen bg-[#141414] text-white font-sans selection:bg-red-600 selection:text-white pb-28 relative">
+      
+      {/* Content Area */}
+      <div className="w-full">
+        {view === 'dashboard' && <Dashboard />}
+        {view === 'player' && <Player />}
+        {view === 'license' && <HunterLicense />}
+        {view === 'map' && <WorldMap />}
+        {view === 'analytics' && <Analytics />}
       </div>
 
-      {view === 'dashboard' && <Dashboard />}
-      {view === 'player' && <Player />}
-      {view === 'license' && <HunterLicense />}
-      {view === 'map' && <WorldMap />}
-      {view === 'analytics' && <Analytics />}
-    </>
+      {/* Navigation Bar (Mobile & Desktop Compatible) */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-black border-t border-gray-800">
+        <div className="flex justify-around items-center p-3 max-w-md mx-auto w-full text-xs font-bold text-gray-500">
+          
+          <button 
+            onClick={() => setView('dashboard')} 
+            className={`flex flex-col items-center gap-1 transition-colors ${view === 'dashboard' ? 'text-red-500' : 'hover:text-gray-300'}`}
+          >
+             <Play size={20} /> Home
+          </button>
+
+          <button 
+            onClick={() => setView('map')} 
+            className={`flex flex-col items-center gap-1 transition-colors ${view === 'map' ? 'text-red-500' : 'hover:text-gray-300'}`}
+          >
+             <Map size={20} /> Map
+          </button>
+
+          <button 
+            onClick={() => setView('license')} 
+            className={`flex flex-col items-center gap-1 transition-colors ${view === 'license' ? 'text-red-500' : 'hover:text-gray-300'}`}
+          >
+             <CheckCircle size={20} /> License
+          </button>
+
+          <button 
+            onClick={() => setView('analytics')} 
+            className={`flex flex-col items-center gap-1 transition-colors ${view === 'analytics' ? 'text-red-500' : 'hover:text-gray-300'}`}
+          >
+             <BarChart2 size={20} /> Stats
+          </button>
+
+        </div>
+      </div>
+    </main>
   );
 };
 
