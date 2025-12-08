@@ -5,27 +5,19 @@ import {
   X, AlertTriangle, ChevronRight, RotateCcw, Filter, Star, Shield
 } from 'lucide-react';
 
-// ------------------------------------------------------------------
-// تم التعديل: الاستيراد الآن من ملف data.js الذي قمت أنت بإنشائه
-// ------------------------------------------------------------------
 import rawData from './data'; 
 
-// --- DATA NORMALIZER (المعالج الذكي) ---
+// --- DATA NORMALIZER ---
 const normalizeData = (data) => {
-  // 1. لو البيانات جاية مصفوفة مباشرة (وده المتوقع من data.js)
   if (Array.isArray(data)) return data;
-
-  // 2. معالجة احتياطية لو البيانات جاية في شكل كائن
   if (data && typeof data === 'object') {
     const potentialArray = data.schedule || data.days || data.episodes || data.plan || data.data;
     if (Array.isArray(potentialArray)) return potentialArray;
   }
-
   console.error("Could not parse data structure");
   return [];
 };
 
-// تجهيز البيانات
 const planData = normalizeData(rawData);
 
 // --- GAME CONFIG & RANKS ---
@@ -38,7 +30,8 @@ const RANKS = [
   { name: "S-Rank Architect", minXP: 200000, class: "Legend" }
 ];
 
-const SKILLS_MAP = {
+// --- تصحيح اسم المتغير هنا ---
+const PHASE_SKILLS = {
   1: "Math & Logic",
   2: "CS Fundamentals",
   3: "Programming Basics",
@@ -434,6 +427,7 @@ const App = () => {
     const userSkills = progress.completed.reduce((acc, date) => {
       const ep = planData.find(e => e.date === date);
       if (ep) {
+        // تم استخدام PHASE_SKILLS بشكل صحيح الآن
         const skillName = PHASE_SKILLS[ep.phaseId] || "General";
         acc[skillName] = (acc[skillName] || 0) + (ep.hoursPlanned || 0);
       }
@@ -498,101 +492,4 @@ const App = () => {
 
   const HunterLicense = () => (
     <div className="min-h-screen bg-gray-900 p-6 flex flex-col items-center justify-center pb-24">
-      <div className="bg-gradient-to-br from-blue-900 to-black border border-blue-500/50 w-full max-w-sm rounded-xl p-6 shadow-2xl relative overflow-hidden">
-         <div className="absolute top-0 right-0 p-4 opacity-20"><Database size={100} /></div>
-         
-         <div className="flex justify-between items-start mb-8">
-            <div>
-              <h2 className="text-sm text-blue-400 font-bold tracking-widest uppercase">Hunter License</h2>
-              <h1 className="text-3xl font-black text-white mt-1">AHMED</h1>
-            </div>
-            <div className="w-16 h-16 bg-gray-800 rounded-lg border border-gray-600 flex items-center justify-center text-3xl">
-               👨‍💻
-            </div>
-         </div>
-
-         <div className="space-y-4 relative z-10">
-            <div className="bg-black/40 p-3 rounded border border-white/10">
-               <span className="text-[10px] text-gray-400 uppercase block">Current Rank</span>
-               <span className="text-white font-bold text-lg">{currentRank.name}</span>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-               <div className="bg-black/40 p-3 rounded border border-white/10">
-                 <span className="text-[10px] text-gray-400 uppercase block">Class</span>
-                 <span className="text-white font-bold">{currentRank.class}</span>
-               </div>
-               <div className="bg-black/40 p-3 rounded border border-white/10">
-                 <span className="text-[10px] text-gray-400 uppercase block">XP</span>
-                 <span className="text-white font-bold">{progress.xp.toLocaleString()}</span>
-               </div>
-            </div>
-         </div>
-
-         <div className="mt-8 pt-4 border-t border-white/10 flex justify-between items-center">
-            <div className="text-[10px] text-gray-500">ID: 99482390-OSSU</div>
-            <div className="flex gap-1 text-yellow-500">★★★★★</div>
-         </div>
-      </div>
-    </div>
-  );
-
-  if (ambush) {
-    return (
-      <div className="fixed inset-0 bg-black/95 z-[999] flex items-center justify-center p-6">
-        <div className="bg-gray-900 border border-red-600 rounded-2xl p-8 max-w-md w-full text-center relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-1 bg-red-600 animate-pulse"></div>
-          <AlertTriangle className="text-red-600 mx-auto mb-4" size={48} />
-          <h2 className="text-2xl font-black text-white mb-2">AMBUSH!</h2>
-          <p className="text-gray-400 mb-6 text-sm">Wild Interview Question Appeared!</p>
-          
-          <div className="bg-black p-6 rounded-lg mb-6 border border-gray-800">
-             <h3 className="font-bold text-lg text-white">{ambush.q}</h3>
-          </div>
-
-          <div className="group mb-6">
-             <p className="text-gray-500 text-xs mb-2">Hover/Tap to reveal answer</p>
-             <div className="h-20 flex items-center justify-center bg-gray-800 rounded opacity-0 group-hover:opacity-100 transition-opacity cursor-help">
-                <p className="text-green-400 font-mono text-sm px-4">{ambush.a}</p>
-             </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-             <button onClick={() => handleAmbushResult(false)} className="bg-gray-700 py-3 rounded font-bold hover:bg-gray-600">Failed</button>
-             <button onClick={() => handleAmbushResult(true)} className="bg-red-600 py-3 rounded font-bold hover:bg-red-500">Defeated</button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <main className="min-h-screen bg-[#141414] text-white font-sans selection:bg-red-600 selection:text-white pb-24 relative">
-      <div className="w-full max-w-2xl mx-auto min-h-screen shadow-2xl bg-[#0f0f0f]">
-        {view === 'dashboard' && <Dashboard />}
-        {view === 'player' && <Player />}
-        {view === 'license' && <HunterLicense />}
-        {view === 'map' && <WorldMap />}
-        {view === 'analytics' && <Analytics />}
-      </div>
-
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-black/90 backdrop-blur border-t border-gray-800">
-        <div className="flex justify-around items-center p-3 max-w-md mx-auto w-full text-[10px] font-bold text-gray-500 uppercase tracking-widest">
-          <button onClick={() => setView('dashboard')} className={`flex flex-col items-center gap-1 ${view === 'dashboard' ? 'text-red-500' : ''}`}>
-             <Play size={20} /> Home
-          </button>
-          <button onClick={() => setView('map')} className={`flex flex-col items-center gap-1 ${view === 'map' ? 'text-red-500' : ''}`}>
-             <Map size={20} /> Map
-          </button>
-          <button onClick={() => setView('license')} className={`flex flex-col items-center gap-1 ${view === 'license' ? 'text-red-500' : ''}`}>
-             <CheckCircle size={20} /> License
-          </button>
-          <button onClick={() => setView('analytics')} className={`flex flex-col items-center gap-1 ${view === 'analytics' ? 'text-red-500' : ''}`}>
-             <BarChart2 size={20} /> Stats
-          </button>
-        </div>
-      </div>
-    </main>
-  );
-};
-
-export default App;
+      <di
