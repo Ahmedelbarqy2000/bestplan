@@ -1,6 +1,6 @@
 {
   "name": "codesaga-ossu",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "private": true,
   "dependencies": {
     "react": "^18.2.0",
@@ -8,6 +8,7 @@
     "react-scripts": "5.0.1",
     "lucide-react": "^0.263.1",
     "canvas-confetti": "^1.6.0",
+    "recharts": "^2.7.2",
     "web-vitals": "^2.1.4"
   },
   "devDependencies": {
@@ -20,12 +21,6 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
-  },
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
   },
   "browserslist": {
     "production": [
