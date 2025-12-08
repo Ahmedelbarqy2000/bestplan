@@ -1,65 +1,75 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
-  Play, CheckCircle, Info, Database, Trophy, Zap, 
-  Map, Book, Brain, Shield, Clock, AlertTriangle, 
-  ChevronRight, Sword, Lock, BarChart2, Calendar
+  Play, CheckCircle, Map, Brain, Sword, 
+  BarChart2, X, Clock, Calendar, ChevronRight, 
+  AlertTriangle, RotateCcw, Filter
 } from 'lucide-react';
 import planData from './data';
 
-// --- GAME CONFIG & RANKS ---
+// --- CONFIG ---
 const RANKS = [
-  { name: "E-Rank Hunter (Noob)", minXP: 0, class: "Civilian" },
-  { name: "D-Rank Scripter", minXP: 5000, class: "Script Kiddie" },
-  { name: "C-Rank Coder", minXP: 15000, class: "Apprentice" },
-  { name: "B-Rank Developer", minXP: 30000, class: "Junior Dev" },
-  { name: "A-Rank Engineer", minXP: 60000, class: "Senior Dev" },
-  { name: "S-Rank Architect", minXP: 100000, class: "Tech Lead" },
-  { name: "Double Star Hunter", minXP: 200000, class: "CTO" }
+  { name: "E-Rank Hunter", minXP: 0, class: "Novice" },
+  { name: "D-Rank Scripter", minXP: 5000, class: "Beginner" },
+  { name: "C-Rank Coder", minXP: 20000, class: "Apprentice" },
+  { name: "B-Rank Developer", minXP: 50000, class: "Professional" },
+  { name: "A-Rank Engineer", minXP: 100000, class: "Expert" },
+  { name: "S-Rank Architect", minXP: 200000, class: "Legend" }
 ];
 
-const SKILLS_MAP = {
-  1: "Math", 2: "CS Theory", 3: "Algorithms", 
-  4: "C++", 5: "Python", 6: "Backend", 
-  7: "Frontend", 8: "Fullstack", 9: "AI/ML", 
-  10: "Specialization", 11: "Career"
+// ربط المراحل بالمهارات للتحليل
+const PHASE_SKILLS = {
+  1: "Math & Logic",
+  2: "CS Fundamentals",
+  3: "Programming Basics",
+  4: "C++ Mastery",
+  5: "Python Scripting",
+  6: "Backend Engineering",
+  7: "Frontend & UX",
+  8: "Fullstack Scaling",
+  9: "AI & Data Science",
+  10: "Specialization",
+  11: "Career Prep"
 };
 
 const AMBUSH_QUESTIONS = [
-  { q: "What is Big O Notation?", a: "Measure of algorithm efficiency." },
-  { q: "Explain Recursion.", a: "A function calling itself until a base case." },
-  { q: "HTTP vs HTTPS?", a: "HTTPS is encrypted using SSL/TLS." },
-  { q: "What is a Promise in JS?", a: "Object representing completion/failure of async op." },
-  { q: "Difference between TCP and UDP?", a: "TCP is reliable/ordered, UDP is fast/connectionless." }
+  { q: "Define Big O Notation.", a: "Describes the performance or complexity of an algorithm." },
+  { q: "What is a Closure?", a: "A function bundled with its lexical environment." },
+  { q: "HTTP vs HTTPS?", a: "HTTPS uses TLS/SSL for encryption." },
+  { q: "Explain Recursion.", a: "A function that calls itself until a base condition is met." }
 ];
 
 const App = () => {
   // --- STATE ---
   const [progress, setProgress] = useState(() => {
-    const saved = localStorage.getItem('codesaga_save_ultimate');
+    const saved = localStorage.getItem('codesaga_save_v3');
     return saved ? JSON.parse(saved) : { 
       completed: [], xp: 0, streak: 0, lastLogin: null, 
-      focusHours: 0, delayOffset: 0, 
-      skills: { Math: 0, Coding: 0, CS: 0, Backend: 0, Frontend: 0 },
-      inventory: [], ambushScore: { correct: 0, total: 0 },
-      weeklyRetros: []
+      focusHours: 0, inventory: [], ambushScore: { correct: 0, total: 0 }
     };
   });
 
   const [view, setView] = useState('dashboard');
   const [activeEpisode, setActiveEpisode] = useState(null);
+  const [selectedPhase, setSelectedPhase] = useState(1); // للتحكم في عرض المواسم
   const [ambush, setAmbush] = useState(null);
-  const [isDungeonActive, setIsDungeonActive] = useState(false);
-  const [timer, setTimer] = useState(25 * 60);
-
+  
   const todayStr = new Date().toISOString().split('T')[0];
 
+  // --- EFFECTS ---
   useEffect(() => {
-    if (progress.lastLogin !== todayStr && Math.random() < 0.3) {
-      const randomQ = AMBUSH_QUESTIONS[Math.floor(Math.random() * AMBUSH_QUESTIONS.length)];
-      setAmbush(randomQ);
+    // 20% Chance of Ambush on login
+    if (progress.lastLogin !== todayStr && Math.random() < 0.2) {
+      setAmbush(AMBUSH_QUESTIONS[Math.floor(Math.random() * AMBUSH_QUESTIONS.length)]);
     }
   }, []);
 
+  useEffect(() => {
+    // تحديث الموسم المختار تلقائياً بناءً على "البطل"
+    const hero = getHeroEpisode();
+    if (hero) setSelectedPhase(hero.phaseId);
+  }, []);
+
+  // --- HELPERS ---
   const currentRank = RANKS.slice().reverse().find(r => progress.xp >= r.minXP) || RANKS[0];
   
   const getHeroEpisode = () => {
@@ -67,62 +77,57 @@ const App = () => {
   };
   const heroEpisode = getHeroEpisode();
 
-  const calculateETA = () => {
-    const totalHours = planData.reduce((acc, curr) => acc + (curr.hoursPlanned || 0), 0);
-    const completedHours = progress.focusHours || 1;
-    const daysPassed = progress.completed.length || 1;
+  // حساب إحصائيات الموسم المختار
+  const phaseStats = useMemo(() => {
+    const episodes = planData.filter(e => e.phaseId === selectedPhase);
+    const totalDays = episodes.length;
+    const completedInPhase = episodes.filter(e => progress.completed.includes(e.date)).length;
+    const totalHours = episodes.reduce((acc, curr) => acc + (curr.hoursPlanned || 0), 0);
+    const weeks = Math.ceil(totalDays / 7);
+    const months = (totalDays / 30).toFixed(1);
     
-    const velocity = completedHours / daysPassed; 
-    const remainingHours = totalHours - (progress.xp / 100); 
-    const daysLeft = remainingHours / (velocity || 1);
-    
-    const date = new Date();
-    date.setDate(date.getDate() + daysLeft);
-    return date.toDateString();
-  };
+    return { episodes, totalDays, completedInPhase, totalHours, weeks, months };
+  }, [selectedPhase, progress.completed]);
 
-  const handleComplete = (date, plannedHours, actualFocusTime) => {
-    if (progress.completed.includes(date)) return;
+  // --- ACTIONS ---
+  
+  // دالة الإكمال والإلغاء (Toggle)
+  const toggleEpisodeCompletion = (episode, actualFocusTime = 0) => {
+    const isCompleted = progress.completed.includes(episode.date);
+    let newCompleted = [...progress.completed];
+    let newXP = progress.xp;
+    let newInventory = [...progress.inventory];
 
-    const baseXP = plannedHours * 100;
-    const bonusXP = actualFocusTime > 0 ? 100 : 0;
-    const totalXP = baseXP + bonusXP;
+    const xpValue = (episode.hoursPlanned * 100) + (actualFocusTime > 0 ? 50 : 0);
 
-    const episode = planData.find(e => e.date === date);
-    const skillType = SKILLS_MAP[episode.phaseId] || "Coding";
-    
+    if (isCompleted) {
+      // Undo
+      newCompleted = newCompleted.filter(d => d !== episode.date);
+      newXP = Math.max(0, newXP - xpValue); // خصم النقاط
+      if (episode.lessonTitle.includes("Project")) {
+        newInventory = newInventory.filter(t => t !== episode.lessonTitle);
+      }
+    } else {
+      // Complete
+      newCompleted.push(episode.date);
+      newXP += xpValue;
+      if (episode.lessonTitle.includes("Project")) {
+        newInventory.push(episode.lessonTitle);
+      }
+    }
+
     const newProgress = {
       ...progress,
-      completed: [...progress.completed, date],
-      xp: progress.xp + totalXP,
-      focusHours: progress.focusHours + (actualFocusTime / 60),
-      skills: {
-        ...progress.skills,
-        [skillType]: (progress.skills[skillType] || 0) + 10
-      }
+      completed: newCompleted,
+      xp: newXP,
+      inventory: newInventory,
+      lastLogin: todayStr
     };
-
-    if (newProgress.lastLogin !== todayStr) {
-      newProgress.streak += 1;
-      newProgress.lastLogin = todayStr;
-    }
-
-    if (episode.lessonTitle.includes("Project") || episode.lessonTitle.includes("Capstone")) {
-      newProgress.inventory.push(episode.lessonTitle);
-    }
-
+    
     setProgress(newProgress);
-    localStorage.setItem('codesaga_save_ultimate', JSON.stringify(newProgress));
-    setView('dashboard');
-  };
-
-  const handleTimeWarp = () => {
-    const confirm = window.confirm("هل تريد ترحيل الخطة؟ سيتم إزاحة التواريخ يومين للأمام.");
-    if(confirm) {
-      const newProgress = { ...progress, delayOffset: progress.delayOffset + 2 };
-      setProgress(newProgress);
-      localStorage.setItem('codesaga_save_ultimate', JSON.stringify(newProgress));
-    }
+    localStorage.setItem('codesaga_save_v3', JSON.stringify(newProgress));
+    
+    if (!isCompleted) setView('dashboard'); // الرجوع فقط عند الإكمال
   };
 
   const handleAmbushResult = (success) => {
@@ -134,312 +139,319 @@ const App = () => {
       }
     };
     setProgress(newProgress);
-    localStorage.setItem('codesaga_save_ultimate', JSON.stringify(newProgress));
+    localStorage.setItem('codesaga_save_v3', JSON.stringify(newProgress));
     setAmbush(null);
   };
 
-  const getProgressPercent = () => {
-    return Math.round((progress.completed.length / planData.length) * 100);
+  // --- COMPONENT: DASHBOARD ---
+  const Dashboard = () => {
+    const phases = [...new Set(planData.map(p => p.phaseId))];
+
+    return (
+      <div className="pb-24">
+        {/* Hero Section */}
+        <div className="relative h-[50vh] flex flex-col justify-end p-6 bg-gradient-to-t from-[#141414] via-black/60 to-gray-900/40">
+           <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=1000&auto=format&fit=crop')] bg-cover bg-center -z-10 opacity-30" />
+           
+           <div className="z-10">
+             <span className="bg-red-600 text-white text-[10px] px-2 py-1 rounded font-bold uppercase tracking-wider mb-2 inline-block">
+               Continue Journey
+             </span>
+             <h1 className="text-3xl md:text-5xl font-black mb-2 leading-tight">{heroEpisode.lessonTitle}</h1>
+             <p className="text-gray-300 text-sm line-clamp-2 mb-4">{heroEpisode.dayGoal}</p>
+             <button 
+               onClick={() => { setActiveEpisode(heroEpisode); setView('player'); }}
+               className="bg-white text-black px-6 py-3 rounded font-bold flex items-center gap-2 hover:bg-gray-200 transition w-fit"
+             >
+               <Play fill="black" size={18} /> Play Episode
+             </button>
+           </div>
+        </div>
+
+        {/* Phase Selector & Stats (حل مشكلة معرفة مدة المرحلة) */}
+        <div className="sticky top-0 bg-[#141414]/95 backdrop-blur z-40 border-b border-gray-800">
+          <div className="flex overflow-x-auto gap-2 p-4 scrollbar-hide">
+            {phases.map(id => (
+              <button
+                key={id}
+                onClick={() => setSelectedPhase(id)}
+                className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-colors
+                  ${selectedPhase === id ? 'bg-white text-black' : 'bg-gray-800 text-gray-400'}
+                `}
+              >
+                Season {id}
+              </button>
+            ))}
+          </div>
+          
+          {/* Phase Stats Banner */}
+          <div className="px-6 pb-4 flex justify-between items-center text-xs text-gray-400">
+             <div className="flex gap-4">
+                <span className="flex items-center gap-1"><Clock size={14} className="text-blue-500"/> {phaseStats.totalHours} Hrs</span>
+                <span className="flex items-center gap-1"><Calendar size={14} className="text-green-500"/> {phaseStats.weeks} Weeks</span>
+             </div>
+             <span className="text-white font-bold">{Math.round((phaseStats.completedInPhase / phaseStats.totalDays) * 100)}% Complete</span>
+          </div>
+        </div>
+
+        {/* Episodes List (Filtered by Phase) */}
+        <div className="p-4 grid gap-4">
+           {phaseStats.episodes.map((ep, idx) => {
+             const isDone = progress.completed.includes(ep.date);
+             return (
+               <div 
+                 key={ep.date}
+                 onClick={() => { setActiveEpisode(ep); setView('player'); }}
+                 className={`flex items-center gap-4 p-4 rounded-xl cursor-pointer transition-all border border-gray-800
+                    ${isDone ? 'bg-green-900/10 border-green-900/30' : 'bg-gray-900 hover:bg-gray-800'}
+                 `}
+               >
+                 <div className="relative min-w-[80px] h-16 bg-black rounded flex items-center justify-center">
+                    <span className="text-xs font-bold text-gray-600">EP {idx + 1}</span>
+                    {isDone && <div className="absolute inset-0 bg-black/60 flex items-center justify-center"><CheckCircle className="text-green-500" size={24}/></div>}
+                 </div>
+                 <div className="flex-1">
+                    <h3 className={`font-bold text-sm mb-1 ${isDone ? 'text-gray-500' : 'text-white'}`}>{ep.lessonTitle}</h3>
+                    <p className="text-[10px] text-gray-500">{ep.date}</p>
+                 </div>
+                 <ChevronRight size={16} className="text-gray-600"/>
+               </div>
+             )
+           })}
+        </div>
+      </div>
+    );
   };
 
-  // --- COMPONENTS ---
-
-  const Dashboard = () => (
-    <div>
-      <div className="relative h-[60vh] flex flex-col justify-end p-6 bg-gradient-to-t from-[#141414] via-black/50 to-gray-900/50">
-        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1555066931-4365d14bab8c?q=80&w=1000&auto=format&fit=crop')] bg-cover bg-center -z-10 opacity-30" />
-        
-        <span className="text-red-500 font-bold tracking-widest text-xs uppercase mb-2">Next Mission</span>
-        <h1 className="text-4xl md:text-6xl font-black mb-4 leading-tight">{heroEpisode.lessonTitle}</h1>
-        <p className="text-gray-300 line-clamp-2 mb-6 max-w-xl">{heroEpisode.dayGoal}</p>
-        
-        <div className="flex gap-4">
-          <button 
-            onClick={() => { setActiveEpisode(heroEpisode); setView('player'); }}
-            className="bg-white text-black px-8 py-3 rounded font-bold flex items-center gap-2 hover:bg-gray-200 transition"
-          >
-            <Play fill="black" size={20} /> Continue
-          </button>
-          <button onClick={() => setView('map')} className="bg-gray-700/80 text-white px-6 py-3 rounded font-bold hover:bg-gray-600 transition">
-             Map
-          </button>
-        </div>
-      </div>
-
-      <div className="p-6 bg-gray-900 border-y border-gray-800 flex justify-between items-center">
-        <div>
-           <h3 className="text-purple-400 font-bold text-sm uppercase flex items-center gap-2">
-             <Brain size={16}/> Oracle Prediction
-           </h3>
-           <p className="text-gray-400 text-xs mt-1">Based on velocity</p>
-        </div>
-        <div className="text-right">
-           <p className="text-2xl font-bold text-white">{calculateETA()}</p>
-           <p className="text-xs text-gray-400">Estimated Finish</p>
-        </div>
-      </div>
-
-      <div className="p-6 space-y-8">
-        {[...new Set(planData.map(p => p.phaseId))].map(phaseId => {
-          const episodes = planData.filter(e => e.phaseId === phaseId);
-          return (
-            <div key={phaseId}>
-              <h3 className="text-white font-bold mb-4 text-lg">Season {phaseId}: {episodes[0].phaseName}</h3>
-              <div className="flex overflow-x-auto gap-4 pb-4 scrollbar-hide">
-                {episodes.map((ep, idx) => {
-                  const isDone = progress.completed.includes(ep.date);
-                  return (
-                    <div 
-                      key={idx}
-                      onClick={() => { setActiveEpisode(ep); setView('player'); }}
-                      className={`min-w-[160px] h-[100px] rounded-lg relative cursor-pointer group transition-all
-                        ${isDone ? 'opacity-50 grayscale' : 'hover:scale-105'}
-                        bg-gray-800 border border-gray-700
-                      `}
-                    >
-                      <div className="absolute inset-0 flex items-center justify-center p-2 text-center">
-                        <span className="text-xs font-bold text-gray-300">{ep.lessonTitle.substring(0,40)}...</span>
-                      </div>
-                      {isDone && <div className="absolute top-2 right-2 text-green-500"><CheckCircle size={16} /></div>}
-                      <div className="absolute bottom-0 w-full h-1 bg-gray-700">
-                        {isDone && <div className="h-full bg-red-600 w-full"></div>}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  );
-
+  // --- COMPONENT: PLAYER (With Undo) ---
   const Player = () => {
-    const [timeLeft, setTimeLeft] = useState(25 * 60);
-    const [timerRunning, setTimerRunning] = useState(false);
+    const isCompleted = progress.completed.includes(activeEpisode.date);
+    const [timer, setTimer] = useState(25 * 60);
+    const [timerActive, setTimerActive] = useState(false);
 
     useEffect(() => {
-      let interval = null;
-      if (timerRunning && timeLeft > 0) {
-        interval = setInterval(() => setTimeLeft(t => t - 1), 1000);
-      } else if (timeLeft === 0) {
-        setTimerRunning(false);
-      }
+      let interval;
+      if (timerActive && timer > 0) interval = setInterval(() => setTimer(t => t-1), 1000);
       return () => clearInterval(interval);
-    }, [timerRunning, timeLeft]);
-
-    const formatTime = (seconds) => {
-      const mins = Math.floor(seconds / 60);
-      const secs = seconds % 60;
-      return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
-    };
+    }, [timerActive, timer]);
 
     return (
-      <div className="min-h-screen bg-black text-white p-6">
-        <button onClick={() => setView('dashboard')} className="mb-6 text-gray-400">← Back to Base</button>
+      <div className="min-h-screen bg-black p-6 pb-24 flex flex-col">
+        <div className="flex justify-between items-center mb-6">
+           <button onClick={() => setView('dashboard')} className="text-gray-400 text-sm">← Back</button>
+           <span className="text-xs font-mono text-red-500">S{activeEpisode.phaseId} // {activeEpisode.date}</span>
+        </div>
+
+        <h1 className="text-2xl md:text-4xl font-black mb-4">{activeEpisode.lessonTitle}</h1>
         
-        <div className="grid md:grid-cols-2 gap-8">
-          <div>
-            <h1 className="text-3xl font-bold mb-2">{activeEpisode.lessonTitle}</h1>
-            <p className="text-gray-400 mb-6">{activeEpisode.dayGoal}</p>
-            
-            <div className={`p-6 rounded-xl border mb-6 text-center transition-colors ${timerRunning ? 'bg-red-900/20 border-red-500' : 'bg-gray-900 border-gray-700'}`}>
-              <h3 className="text-xl font-bold mb-4 flex justify-center items-center gap-2">
-                <Sword size={24} /> Focus Dungeon
-              </h3>
-              <div className="text-5xl font-mono font-black mb-6">{formatTime(timeLeft)}</div>
-              <button 
-                onClick={() => setTimerRunning(!timerRunning)}
-                className={`px-8 py-2 rounded-full font-bold ${timerRunning ? 'bg-red-600' : 'bg-green-600'}`}
-              >
-                {timerRunning ? 'PAUSE' : 'ENTER DUNGEON'}
-              </button>
-              <p className="text-xs text-gray-500 mt-4">Gain Bonus XP by focusing.</p>
-            </div>
+        {/* Focus Dungeon */}
+        <div className={`p-6 rounded-2xl border mb-8 text-center transition-all ${timerActive ? 'bg-red-900/10 border-red-600' : 'bg-gray-900 border-gray-800'}`}>
+           <h3 className="text-gray-400 text-xs uppercase tracking-widest mb-2">Focus Dungeon</h3>
+           <div className="text-6xl font-black font-mono mb-4">
+             {Math.floor(timer / 60)}:{String(timer % 60).padStart(2, '0')}
+           </div>
+           <button 
+             onClick={() => setTimerActive(!timerActive)}
+             className={`px-6 py-2 rounded-full font-bold text-sm ${timerActive ? 'bg-red-600 text-white' : 'bg-gray-700 text-gray-300'}`}
+           >
+             {timerActive ? 'PAUSE' : 'START TIMER'}
+           </button>
+        </div>
 
-            <div className="space-y-3">
-              <h3 className="font-bold text-gray-400">Quest Log:</h3>
-              {activeEpisode.tasks.map((t, i) => (
-                <div key={i} className="flex gap-3 p-3 bg-gray-800 rounded">
-                  <div className="mt-1"><div className="w-4 h-4 border border-gray-500 rounded-sm"></div></div>
-                  <span className="text-sm">{t}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+        <div className="bg-gray-900 p-5 rounded-xl mb-6">
+           <h3 className="font-bold text-white mb-3 flex items-center gap-2"><Info size={16}/> Objective</h3>
+           <p className="text-sm text-gray-300 leading-relaxed">{activeEpisode.dayGoal}</p>
+        </div>
 
-          <div className="flex flex-col justify-end">
-             <div className="bg-yellow-900/20 p-4 rounded border border-yellow-700/50 mb-6">
-               <span className="text-yellow-500 font-bold block mb-1">CLIFFHANGER:</span>
-               <p className="text-sm text-gray-300">{activeEpisode.stopPoint || "End of Unit."}</p>
-             </div>
-             
-             <a href={activeEpisode.resourceURL} target="_blank" rel="noreferrer" className="w-full bg-white text-black font-bold py-3 rounded text-center mb-3">
-               Open Resources
-             </a>
-             <button 
-               onClick={() => handleComplete(activeEpisode.date, activeEpisode.hoursPlanned, (25*60 - timeLeft)/60)}
-               className="w-full bg-green-600 text-white font-bold py-4 rounded text-center"
-             >
-               Mission Complete
-             </button>
-          </div>
+        <div className="flex-1">
+           <h3 className="font-bold text-gray-500 text-xs uppercase mb-3">Tasks</h3>
+           <div className="space-y-2">
+             {activeEpisode.tasks.map((t, i) => (
+               <div key={i} className="flex gap-3 p-3 bg-gray-900/50 rounded border border-gray-800">
+                 <div className="w-4 h-4 rounded-sm border border-gray-600 mt-1"></div>
+                 <span className="text-sm text-gray-300">{t}</span>
+               </div>
+             ))}
+           </div>
+        </div>
+
+        <div className="mt-8 space-y-3">
+           <a 
+             href={activeEpisode.resourceURL} 
+             target="_blank" 
+             rel="noreferrer" 
+             className="block w-full py-4 bg-white text-black font-bold text-center rounded-xl"
+           >
+             Open Resource
+           </a>
+           
+           <button 
+             onClick={() => toggleEpisodeCompletion(activeEpisode, (25*60 - timer)/60)}
+             className={`block w-full py-4 font-bold text-center rounded-xl border-2 transition-all
+               ${isCompleted 
+                 ? 'bg-transparent border-red-600 text-red-500 hover:bg-red-600/10' 
+                 : 'bg-green-600 border-green-600 text-white hover:bg-green-500'}
+             `}
+           >
+             {isCompleted ? '✕ Undo Completion' : '✔ Mark Complete'}
+           </button>
         </div>
       </div>
     );
   };
 
-  const HunterLicense = () => (
-    <div className="min-h-screen bg-gray-900 p-6 flex flex-col items-center justify-center">
-      <h2 className="text-2xl font-black text-white mb-8">HUNTER LICENSE</h2>
-      
-      <div className="flip-card w-full max-w-sm h-96">
-        <div className="flip-card-inner">
-          
-          <div className="flip-card-front bg-gradient-to-br from-blue-900 to-black border-2 border-blue-500 rounded-xl p-6 flex flex-col justify-between shadow-2xl shadow-blue-900/50">
-            <div className="flex justify-between items-start">
-               <div className="text-left">
-                  <h3 className="text-3xl font-black text-white">HUNTER</h3>
-                  <p className="text-blue-400 font-mono text-sm uppercase">{currentRank.name}</p>
-               </div>
-               <div className="w-16 h-16 bg-gray-700 rounded-full border-2 border-white flex items-center justify-center text-2xl">
-                  👨‍💻
-               </div>
-            </div>
-            
-            <div className="text-left space-y-2">
-               <div className="bg-black/30 p-2 rounded">
-                 <span className="text-gray-400 text-xs block">CLASS</span>
-                 <span className="text-white font-bold">{currentRank.class}</span>
-               </div>
-               <div className="bg-black/30 p-2 rounded">
-                 <span className="text-gray-400 text-xs block">ABILITY</span>
-                 <span className="text-white font-bold">Copy/Paste Jutsu</span>
-               </div>
-            </div>
-
-            <div className="flex justify-between items-end">
-               <div className="text-left">
-                  <span className="text-5xl font-black text-white/10 absolute bottom-4 left-4">OSSU</span>
-                  <span className="relative text-white font-mono text-xl">{progress.xp} XP</span>
-               </div>
-               <div className="flex gap-1">
-                 {[...Array(Math.min(5, progress.inventory.length))].map((_, i) => (
-                    <span key={i} className="text-yellow-500">★</span>
-                 ))}
-               </div>
-            </div>
-          </div>
-
-          <div className="flip-card-back bg-gray-800 border-2 border-gray-600 rounded-xl p-6 flex flex-col justify-center">
-             <h3 className="text-xl font-bold mb-4 text-gray-300">Skill Matrix</h3>
-             <div className="space-y-3">
-               {Object.entries(progress.skills).map(([skill, val]) => (
-                 <div key={skill}>
-                   <div className="flex justify-between text-xs text-gray-400 mb-1">
-                     <span>{skill}</span>
-                     <span>{val} pts</span>
-                   </div>
-                   <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-                     <div className="h-full bg-blue-500" style={{width: `${Math.min(100, val)}%`}}></div>
-                   </div>
-                 </div>
-               ))}
-             </div>
-             <p className="mt-6 text-xs text-gray-500 italic">"Job prospects: Currently eligible to center divs."</p>
-          </div>
-
-        </div>
-      </div>
-      <p className="text-gray-500 mt-8 text-sm">Tap card to flip</p>
-    </div>
-  );
-
-  const Analytics = () => {
-    const successRate = Math.round((progress.ambushScore.correct / (progress.ambushScore.total || 1)) * 100);
-    
-    return (
-      <div className="min-h-screen bg-black p-6">
-        <h1 className="text-3xl font-bold mb-8">Performance Analytics</h1>
-
-        <div className="grid gap-6">
-           <div className="bg-gray-900 p-6 rounded-xl border border-gray-800">
-             <h3 className="text-gray-400 text-sm uppercase mb-2">Ambush Success Rate</h3>
-             <div className="text-4xl font-bold text-white mb-2">{successRate}%</div>
-             <p className="text-xs text-gray-500">Based on random interview questions.</p>
-             {successRate < 50 && <p className="text-red-500 text-sm mt-2">⚠️ You need to review basic concepts!</p>}
-           </div>
-
-           <div className="bg-gray-900 p-6 rounded-xl border border-gray-800">
-             <h3 className="text-gray-400 text-sm uppercase mb-2">Artifacts (Projects)</h3>
-             <div className="flex flex-wrap gap-2">
-                {progress.inventory.length === 0 && <span className="text-gray-600 italic">No artifacts found. Go code something!</span>}
-                {progress.inventory.map((item, i) => (
-                  <span key={i} className="bg-purple-900/50 text-purple-300 px-3 py-1 rounded-full text-xs border border-purple-800">{item}</span>
-                ))}
-             </div>
-           </div>
-
-           <div className="bg-gray-900 p-6 rounded-xl border border-gray-800">
-             <h3 className="text-gray-400 text-sm uppercase mb-2">Oracle Advice</h3>
-             <div className="text-gray-300 text-sm leading-relaxed">
-               {progress.xp < 10000 
-                  ? "You are still a Novice. Focus on consistency rather than speed. Don't skip the Math!" 
-                  : "You are gaining momentum. Check your Skill Matrix on your License to see weak points."}
-             </div>
-           </div>
-        </div>
-      </div>
-    );
-  };
-
+  // --- COMPONENT: WORLD MAP (Grid View) ---
   const WorldMap = () => (
-    <div className="min-h-screen bg-[#0a0a0a] text-white p-4">
+    <div className="min-h-screen bg-[#0a0a0a] p-4 pb-24">
        <div className="flex justify-between items-center mb-6">
-         <h2 className="font-bold text-xl">World Map</h2>
+         <h2 className="font-bold text-xl flex items-center gap-2"><Map className="text-red-500"/> World Map</h2>
+         <div className="text-xs text-gray-500">Total: {planData.length} Days</div>
        </div>
 
-       <div className="bg-gray-900 p-4 rounded-lg mb-8 overflow-x-auto">
-         <h3 className="text-xs font-bold text-gray-500 mb-2">ACTIVITY LOG</h3>
-         <div className="flex gap-1 min-w-max">
-           {[...Array(30)].map((_, i) => (
-             <div key={i} className={`w-3 h-3 rounded-sm ${Math.random() > 0.7 ? 'bg-green-600' : 'bg-gray-800'}`}></div>
-           ))}
+       <div className="bg-gray-900 p-4 rounded-xl border border-gray-800">
+         <div className="grid grid-cols-7 gap-1">
+           {planData.map((ep, i) => {
+             const isDone = progress.completed.includes(ep.date);
+             const isToday = ep.date === todayStr;
+             const isRest = ep.hoursPlanned === 0;
+
+             let color = "bg-gray-800";
+             if (isDone) color = "bg-green-500";
+             else if (isToday) color = "bg-white animate-pulse";
+             else if (isRest) color = "bg-gray-700/30";
+
+             return (
+               <div 
+                 key={i}
+                 onClick={() => { setActiveEpisode(ep); setView('player'); }}
+                 className={`aspect-square rounded-sm cursor-pointer ${color}`}
+               />
+             )
+           })}
          </div>
        </div>
-
-       <div className="bg-red-900/20 border border-red-900 p-4 rounded-lg mb-8 flex justify-between items-center">
-          <div>
-            <h3 className="font-bold text-red-500">Reality Shift</h3>
-            <p className="text-xs text-gray-400">Missed days? Shift timeline.</p>
-          </div>
-          <button onClick={handleTimeWarp} className="bg-red-600 text-white px-4 py-2 rounded text-xs font-bold">
-            Activate
-          </button>
-       </div>
-
-       <div className="space-y-4">
-         {planData.slice(0, 50).map((ep, i) => { 
-           const isDone = progress.completed.includes(ep.date);
-           return (
-             <div key={i} className={`flex items-center gap-4 p-3 rounded ${isDone ? 'bg-gray-900 opacity-50' : 'bg-gray-800'}`}>
-                <div className={`w-2 h-2 rounded-full ${isDone ? 'bg-green-500' : 'bg-gray-500'}`}></div>
-                <div className="flex-1">
-                   <h4 className="text-sm font-bold">{ep.lessonTitle}</h4>
-                   <span className="text-xs text-gray-500">{ep.phaseName}</span>
-                </div>
-             </div>
-           )
-         })}
+       <div className="mt-4 flex gap-4 justify-center text-[10px] text-gray-500 uppercase font-bold">
+          <span className="flex items-center gap-1"><div className="w-2 h-2 bg-green-500 rounded-sm"></div> Done</span>
+          <span className="flex items-center gap-1"><div className="w-2 h-2 bg-white rounded-sm"></div> Current</span>
+          <span className="flex items-center gap-1"><div className="w-2 h-2 bg-gray-800 rounded-sm"></div> Future</span>
        </div>
     </div>
   );
 
+  // --- COMPONENT: ANALYTICS (Smart Analysis) ---
+  const Analytics = () => {
+    // حساب مهارات المستخدم بناءً على الحلقات المكتملة
+    const userSkills = progress.completed.reduce((acc, date) => {
+      const ep = planData.find(e => e.date === date);
+      if (ep) {
+        const skill = PHASE_SKILLS[ep.phaseId] || "General";
+        acc[skill] = (acc[skill] || 0) + ep.hoursPlanned;
+      }
+      return acc;
+    }, {});
+
+    return (
+      <div className="min-h-screen bg-black p-6 pb-24">
+        <h1 className="text-3xl font-bold mb-6">Skill Analysis</h1>
+        
+        {/* Radar Chart Simulation (List Style) */}
+        <div className="bg-gray-900 p-6 rounded-xl border border-gray-800 mb-6">
+          <h3 className="text-gray-400 text-xs uppercase mb-4 font-bold">Skill Distribution (Hours)</h3>
+          <div className="space-y-4">
+            {Object.entries(userSkills).length === 0 ? (
+              <p className="text-gray-500 text-sm">No data yet. Complete episodes to analyze skills.</p>
+            ) : (
+              Object.entries(userSkills).map(([skill, hours]) => (
+                <div key={skill}>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-gray-300">{skill}</span>
+                    <span className="text-white font-mono">{hours}h</span>
+                  </div>
+                  <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
+                    <div className="h-full bg-blue-600" style={{width: `${Math.min(100, hours * 2)}%`}}></div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Ambush Stats */}
+        <div className="bg-gray-900 p-6 rounded-xl border border-gray-800 mb-6">
+           <h3 className="text-gray-400 text-xs uppercase mb-2 font-bold">Interview Readiness</h3>
+           <div className="flex items-end gap-2">
+             <span className="text-4xl font-bold text-white">
+               {progress.ambushScore.total > 0 
+                 ? Math.round((progress.ambushScore.correct / progress.ambushScore.total) * 100) 
+                 : 0}%
+             </span>
+             <span className="text-gray-500 text-sm mb-1">Success Rate</span>
+           </div>
+           <p className="text-xs text-gray-500 mt-2">
+             {progress.ambushScore.total < 5 ? "Not enough data." : "Keep solving Ambush questions!"}
+           </p>
+        </div>
+
+        {/* Weakness Detector */}
+        <div className="bg-red-900/10 p-6 rounded-xl border border-red-900/30">
+          <h3 className="text-red-500 text-xs uppercase mb-2 font-bold flex items-center gap-2"><AlertTriangle size={14}/> Weak Points</h3>
+          <p className="text-sm text-gray-300">
+             {progress.xp < 5000 
+               ? "You are just starting. Consistency is your biggest weakness right now." 
+               : "Analysis requires more data. Keep pushing!"}
+          </p>
+        </div>
+      </div>
+    );
+  };
+
+  // --- COMPONENT: HUNTER LICENSE ---
+  const HunterLicense = () => (
+    <div className="min-h-screen bg-gray-900 p-6 flex flex-col items-center justify-center pb-24">
+      <div className="bg-gradient-to-br from-blue-900 to-black border border-blue-500/50 w-full max-w-sm rounded-xl p-6 shadow-2xl relative overflow-hidden">
+         <div className="absolute top-0 right-0 p-4 opacity-20"><Database size={100} /></div>
+         
+         <div className="flex justify-between items-start mb-8">
+            <div>
+              <h2 className="text-sm text-blue-400 font-bold tracking-widest uppercase">Hunter License</h2>
+              <h1 className="text-3xl font-black text-white mt-1">AHMED</h1>
+            </div>
+            <div className="w-16 h-16 bg-gray-800 rounded-lg border border-gray-600 flex items-center justify-center text-3xl">
+               👨‍💻
+            </div>
+         </div>
+
+         <div className="space-y-4 relative z-10">
+            <div className="bg-black/40 p-3 rounded border border-white/10">
+               <span className="text-[10px] text-gray-400 uppercase block">Current Rank</span>
+               <span className="text-white font-bold text-lg">{currentRank.name}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+               <div className="bg-black/40 p-3 rounded border border-white/10">
+                 <span className="text-[10px] text-gray-400 uppercase block">Class</span>
+                 <span className="text-white font-bold">{currentRank.class}</span>
+               </div>
+               <div className="bg-black/40 p-3 rounded border border-white/10">
+                 <span className="text-[10px] text-gray-400 uppercase block">XP</span>
+                 <span className="text-white font-bold">{progress.xp.toLocaleString()}</span>
+               </div>
+            </div>
+         </div>
+
+         <div className="mt-8 pt-4 border-t border-white/10 flex justify-between items-center">
+            <div className="text-[10px] text-gray-500">ID: 99482390-OSSU</div>
+            <div className="flex gap-1 text-yellow-500">★★★★★</div>
+         </div>
+      </div>
+    </div>
+  );
+
+  // --- AMBUSH MODAL ---
   if (ambush) {
     return (
       <div className="fixed inset-0 bg-black/95 z-[999] flex items-center justify-center p-6">
-        <div className="bg-gray-900 border-2 border-red-600 rounded-2xl p-8 max-w-md w-full text-center">
+        <div className="bg-gray-900 border border-red-600 rounded-2xl p-8 max-w-md w-full text-center relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-1 bg-red-600 animate-pulse"></div>
           <AlertTriangle className="text-red-600 mx-auto mb-4" size={48} />
           <h2 className="text-2xl font-black text-white mb-2">AMBUSH!</h2>
           <p className="text-gray-400 mb-6 text-sm">Wild Interview Question Appeared!</p>
@@ -448,14 +460,14 @@ const App = () => {
              <h3 className="font-bold text-lg text-white">{ambush.q}</h3>
           </div>
 
-          <div className="group">
+          <div className="group mb-6">
              <p className="text-gray-500 text-xs mb-2">Hover/Tap to reveal answer</p>
              <div className="h-20 flex items-center justify-center bg-gray-800 rounded opacity-0 group-hover:opacity-100 transition-opacity cursor-help">
                 <p className="text-green-400 font-mono text-sm px-4">{ambush.a}</p>
              </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 mt-6">
+          <div className="grid grid-cols-2 gap-4">
              <button onClick={() => handleAmbushResult(false)} className="bg-gray-700 py-3 rounded font-bold hover:bg-gray-600">Failed</button>
              <button onClick={() => handleAmbushResult(true)} className="bg-red-600 py-3 rounded font-bold hover:bg-red-500">Defeated</button>
           </div>
@@ -464,12 +476,10 @@ const App = () => {
     );
   }
 
-// --- ROUTING ---
+  // --- MAIN RENDER ---
   return (
-    <main className="min-h-screen bg-[#141414] text-white font-sans selection:bg-red-600 selection:text-white pb-28 relative">
-      
-      {/* Content Area */}
-      <div className="w-full">
+    <main className="min-h-screen bg-[#141414] text-white font-sans selection:bg-red-600 selection:text-white pb-24 relative">
+      <div className="w-full max-w-2xl mx-auto min-h-screen shadow-2xl bg-[#0f0f0f]">
         {view === 'dashboard' && <Dashboard />}
         {view === 'player' && <Player />}
         {view === 'license' && <HunterLicense />}
@@ -477,38 +487,21 @@ const App = () => {
         {view === 'analytics' && <Analytics />}
       </div>
 
-      {/* Navigation Bar (Mobile & Desktop Compatible) */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-black border-t border-gray-800">
-        <div className="flex justify-around items-center p-3 max-w-md mx-auto w-full text-xs font-bold text-gray-500">
-          
-          <button 
-            onClick={() => setView('dashboard')} 
-            className={`flex flex-col items-center gap-1 transition-colors ${view === 'dashboard' ? 'text-red-500' : 'hover:text-gray-300'}`}
-          >
+      {/* Navigation */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-black/90 backdrop-blur border-t border-gray-800">
+        <div className="flex justify-around items-center p-3 max-w-md mx-auto w-full text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+          <button onClick={() => setView('dashboard')} className={`flex flex-col items-center gap-1 ${view === 'dashboard' ? 'text-red-500' : ''}`}>
              <Play size={20} /> Home
           </button>
-
-          <button 
-            onClick={() => setView('map')} 
-            className={`flex flex-col items-center gap-1 transition-colors ${view === 'map' ? 'text-red-500' : 'hover:text-gray-300'}`}
-          >
+          <button onClick={() => setView('map')} className={`flex flex-col items-center gap-1 ${view === 'map' ? 'text-red-500' : ''}`}>
              <Map size={20} /> Map
           </button>
-
-          <button 
-            onClick={() => setView('license')} 
-            className={`flex flex-col items-center gap-1 transition-colors ${view === 'license' ? 'text-red-500' : 'hover:text-gray-300'}`}
-          >
+          <button onClick={() => setView('license')} className={`flex flex-col items-center gap-1 ${view === 'license' ? 'text-red-500' : ''}`}>
              <CheckCircle size={20} /> License
           </button>
-
-          <button 
-            onClick={() => setView('analytics')} 
-            className={`flex flex-col items-center gap-1 transition-colors ${view === 'analytics' ? 'text-red-500' : 'hover:text-gray-300'}`}
-          >
+          <button onClick={() => setView('analytics')} className={`flex flex-col items-center gap-1 ${view === 'analytics' ? 'text-red-500' : ''}`}>
              <BarChart2 size={20} /> Stats
           </button>
-
         </div>
       </div>
     </main>
