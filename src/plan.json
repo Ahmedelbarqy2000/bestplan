@@ -1,0 +1,25 @@
+[
+  {
+    "date": "2026-01-01",
+    "phaseId": 1,
+    "phaseName": "Foundation — Math Core",
+    "lessonTitle": "Self study unit 1",
+    "resourceName": "Khan Academy — Math",
+    "resourceURL": "https://www.khanacademy.org/math",
+    "hoursPlanned": 4,
+    "tasks": [
+       "task 1...",
+       "task 2..."
+    ],
+    "dayGoal": "...",
+    "weekGoal": "...",
+    "monthGoal": "...",
+    "stopPoint": "..."
+  }
+  ,
+  ... (باقي الحلقات) ...
+  ,
+  {
+     ... (آخر حلقة) ...
+  }
+]
