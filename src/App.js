@@ -1,208 +1,148 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Zap, Award, CheckCircle, ExternalLink, Trophy, Flame, BookOpen } from 'lucide-react';
+import { Shield, Zap, Award, ExternalLink, CheckCircle, RotateCw, Sword } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import planData from './plan.json';
 
-// --- (1) مكونات العرض (UI Components) ---
-
-// الهيدر اللي فيه اللفل والـ XP
-const StatsHeader = ({ level, xp, streak, progress }) => (
-  <div className="bg-[#18181b] border-b border-[#27272a] sticky top-0 z-50 p-3 shadow-xl">
-    <div className="max-w-3xl mx-auto flex justify-between items-center">
-      {/* المستوى */}
-      <div className="flex items-center gap-3">
-        <div className="relative">
-          <Shield className="w-10 h-10 text-purple-500" fill="rgba(139, 92, 246, 0.2)" />
-          <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 font-bold text-white text-sm">{level}</span>
-        </div>
-        <div className="hidden sm:block">
-          <div className="text-xs text-gray-400">Hunter Level</div>
-          <div className="h-2 w-24 bg-gray-700 rounded-full mt-1 overflow-hidden">
-            <div className="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-500" style={{ width: `${progress}%` }} />
-          </div>
-        </div>
-      </div>
-
-      {/* العدادات */}
-      <div className="flex gap-3">
-        <div className="bg-[#27272a] px-3 py-1 rounded-lg flex items-center gap-2 border border-yellow-500/20">
-          <Zap className="w-4 h-4 text-yellow-400" fill="currentColor" />
-          <span className="font-mono font-bold text-yellow-100">{xp}</span>
-        </div>
-        <div className="bg-[#27272a] px-3 py-1 rounded-lg flex items-center gap-2 border border-orange-500/20">
-          <Flame className="w-4 h-4 text-orange-500" fill="currentColor" />
-          <span className="font-mono font-bold text-orange-100">{streak}</span>
-        </div>
-      </div>
-    </div>
-  </div>
-);
-
-// --- (2) التطبيق الرئيسي ---
-function App() {
-  // تحميل البيانات المحفوظة من الموبايل
+const App = () => {
+  // --- تحميل البيانات ---
   const [save, setSave] = useState(() => {
-    const saved = localStorage.getItem('codesaga_save_v1');
-    return saved ? JSON.parse(saved) : {
-      completedCount: 0, // عدد الأيام المكتملة
-      xp: 0,
-      streak: 0,
-      lastLogin: null
-    };
+    const saved = localStorage.getItem('codesaga_rpg_v3');
+    return saved ? JSON.parse(saved) : { count: 0, xp: 0, streak: 0, lastLogin: null };
   });
 
-  // حساب المستوى (كل 1000 نقطة مستوى)
+  const [isFlipped, setIsFlipped] = useState(false); // عشان القلبة
+
+  // --- حسابات اللعبة ---
   const level = Math.floor(save.xp / 1000) + 1;
-  const progressToNextLevel = ((save.xp % 1000) / 1000) * 100;
+  const currentIdx = save.count;
+  const task = planData.days[currentIdx];
+  const isFinished = currentIdx >= planData.days.length;
 
-  // تحديد اليوم الحالي (بناء على عدد الأيام المكتملة في المصفوفة)
-  const currentTaskIndex = save.completedCount;
-  const currentTask = planData.days && planData.days[currentTaskIndex];
-  const isFinished = currentTaskIndex >= planData.days.length;
-
-  // حفظ تلقائي عند أي تغيير
   useEffect(() => {
-    localStorage.setItem('codesaga_save_v1', JSON.stringify(save));
+    localStorage.setItem('codesaga_rpg_v3', JSON.stringify(save));
   }, [save]);
 
-  // دالة إتمام المهمة
-  const handleComplete = () => {
-    // 1. احتفال
-    confetti({
-      particleCount: 150,
-      spread: 70,
-      origin: { y: 0.6 },
-      colors: ['#a855f7', '#ec4899', '#fbbf24']
-    });
-
-    // 2. حساب الستريك
-    const today = new Date().toDateString();
-    let newStreak = save.streak;
+  // --- الأكشن ---
+  const handleComplete = (e) => {
+    e.stopPropagation(); // عشان الكارت ميتلبش لما تدوس
+    confetti({ particleCount: 200, spread: 100, origin: { y: 0.6 } });
     
-    if (save.lastLogin !== today) {
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      if (save.lastLogin === yesterday.toDateString()) {
-        newStreak += 1;
-      } else {
-        newStreak = 1; // لو فوت يوم يبدأ من 1
-      }
-    }
+    const today = new Date().toDateString();
+    let newStreak = (save.lastLogin === new Date(Date.now() - 864e5).toDateString()) ? save.streak + 1 : 1;
+    if (save.lastLogin === today) newStreak = save.streak;
 
-    // 3. تحديث البيانات
     setSave(prev => ({
-      completedCount: prev.completedCount + 1,
-      xp: prev.xp + 150, // 150 نقطة لكل يوم
+      count: prev.count + 1,
+      xp: prev.xp + 200,
       streak: newStreak,
       lastLogin: today
     }));
-
-    // سكرول لأعلى الصفحة
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setIsFlipped(false); // نرجع الكارت لوشه للمهمة الجديدة
+    window.scrollTo(0,0);
   };
 
-  // دالة تخطي اليوم (بدون نقاط)
-  const handleSkip = () => {
-    if (window.confirm("هتعدي اليوم ده من غير ما تاخد XP؟")) {
-      setSave(prev => ({
-        ...prev,
-        completedCount: prev.completedCount + 1
-      }));
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  };
-
-  // شاشة الختام
-  if (isFinished) {
-    return (
-      <div className="min-h-screen bg-[#09090b] flex flex-col items-center justify-center p-6 text-center text-white">
-        <Trophy className="w-32 h-32 text-yellow-400 mb-6 animate-bounce" />
-        <h1 className="text-4xl font-bold mb-4">أسطورة! 🎉</h1>
-        <p className="text-gray-400 mb-8">أنت خلصت منهج OSSU بالكامل.</p>
-        <div className="bg-[#18181b] p-6 rounded-2xl border border-[#27272a] min-w-[300px]">
-          <div className="text-sm text-gray-500 mb-1">Total XP</div>
-          <div className="text-3xl font-bold text-purple-400">{save.xp}</div>
-        </div>
-      </div>
-    );
-  }
-
-  // لو مفيش بيانات
-  if (!currentTask) {
-    return <div className="text-white text-center p-10">جاري تحميل البيانات... تأكد من ملف plan.json</div>;
-  }
+  if (isFinished) return <div className="h-screen flex items-center justify-center text-white text-3xl font-bold">ختمت اللعبة يا بطل! 🏆</div>;
+  if (!task) return <div className="text-white text-center mt-20">جاري تحميل البيانات...</div>;
 
   return (
-    <div className="min-h-screen bg-[#09090b] pb-10">
-      <StatsHeader level={level} xp={save.xp} streak={save.streak} progress={progressToNextLevel} />
-
-      <main className="max-w-2xl mx-auto p-4 md:p-6">
-        {/* كارت المرحلة */}
-        <div className="mb-6 flex items-center justify-between">
-          <span className="px-3 py-1 bg-purple-500/10 text-purple-400 rounded-full text-xs font-bold uppercase tracking-wider border border-purple-500/20">
-            {currentTask.phaseName}
-          </span>
-          <span className="text-gray-500 text-xs">
-            Day {currentTaskIndex + 1} / {planData.days.length}
-          </span>
+    <div className="min-h-screen flex flex-col p-4">
+      {/* 1. الهيدر (HUD) */}
+      <div className="flex justify-between items-center mb-8 bg-black/40 p-4 rounded-2xl border border-purple-500/20 backdrop-blur-md">
+        <div className="flex items-center gap-3">
+          <div className="bg-purple-900/50 p-2 rounded-lg border border-purple-500/50">
+            <Shield className="text-purple-400 w-6 h-6" />
+          </div>
+          <div>
+            <div className="text-[10px] text-gray-400 uppercase tracking-widest">Hunter Level</div>
+            <div className="text-xl font-bold text-white">{level}</div>
+          </div>
         </div>
+        <div className="text-right">
+          <div className="text-[10px] text-gray-400 uppercase tracking-widest">Experience</div>
+          <div className="text-xl font-bold text-yellow-400 flex items-center justify-end gap-1">
+            {save.xp} <Zap size={16} fill="currentColor" />
+          </div>
+        </div>
+      </div>
 
-        {/* الكارت الرئيسي للمهمة */}
-        <div className="bg-[#18181b] rounded-2xl p-6 border border-[#27272a] shadow-2xl relative overflow-hidden">
-          {/* خلفية جمالية */}
-          <div className="absolute top-0 right-0 p-24 bg-purple-600/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
-
-          <h2 className="text-2xl font-bold text-white mb-6 relative z-10 leading-snug">
-            {currentTask.lessonTitle}
-          </h2>
-
-          {/* زر المصدر */}
-          {currentTask.resourceURL && (
-            <a 
-              href={currentTask.resourceURL} 
-              target="_blank" 
-              rel="noreferrer"
-              className="w-full mb-8 flex items-center justify-center gap-2 bg-[#27272a] hover:bg-[#3f3f46] text-blue-400 py-3 rounded-xl border border-[#3f3f46] transition-all"
-            >
-              <ExternalLink size={18} />
-              <span>افتح المصدر: {currentTask.resourceName}</span>
-            </a>
-          )}
-
-          {/* المهام المطلوبة */}
-          <div className="space-y-3 mb-8 relative z-10">
-            <h3 className="text-gray-500 text-xs uppercase tracking-widest font-bold mb-2">Checklist</h3>
-            {currentTask.tasks.map((step, idx) => (
-              <div key={idx} className="flex gap-3 p-3 bg-black/20 rounded-lg border border-transparent hover:border-gray-700 transition-colors">
-                <div className="min-w-[24px] h-6 flex items-center justify-center bg-gray-800 rounded text-xs font-bold text-gray-400 mt-1">
-                  {idx + 1}
-                </div>
-                <p className="text-gray-300 text-base leading-relaxed dir-rtl" style={{direction: 'rtl'}}>
-                  {step}
-                </p>
+      {/* 2. منطقة الكارت القلاب (The Arena) */}
+      <div className="flex-1 flex items-center justify-center perspective-1000 my-4">
+        <div 
+          className={`relative w-full max-w-md h-[600px] transition-all duration-700 transform-style-3d cursor-pointer ${isFlipped ? 'rotate-y-180' : ''}`}
+          onClick={() => setIsFlipped(!isFlipped)}
+        >
+          
+          {/* --- وش الكارت (Front) --- */}
+          <div className="absolute w-full h-full backface-hidden bg-[#121212] rounded-[2rem] border border-gray-800 shadow-2xl overflow-hidden flex flex-col neon-border">
+            {/* صورة/لون المرحلة */}
+            <div className="h-1/2 bg-gradient-to-br from-purple-900 to-black flex items-center justify-center relative p-6">
+              <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20"></div>
+              <div className="text-center z-10 animate-float">
+                <Sword className="w-20 h-20 text-purple-400 mx-auto mb-4 opacity-80" />
+                <span className="px-3 py-1 bg-black/50 text-purple-300 rounded-full text-xs font-bold border border-purple-500/30">
+                  {task.phaseName}
+                </span>
               </div>
-            ))}
+            </div>
+            
+            {/* تفاصيل سريعة */}
+            <div className="h-1/2 p-8 flex flex-col justify-between relative bg-[#0a0a0a]">
+               <div>
+                 <h2 className="text-gray-500 text-sm font-bold uppercase tracking-wider mb-2">مهمة اليوم #{currentIdx + 1}</h2>
+                 <h1 className="text-3xl font-bold text-white leading-tight">{task.lessonTitle}</h1>
+               </div>
+               
+               <div className="w-full bg-gray-800 h-12 rounded-xl flex items-center justify-center gap-2 text-gray-300 group hover:bg-gray-700 transition-colors">
+                 <RotateCw size={18} className="animate-spin-slow" />
+                 <span className="font-bold">اضغط لقلب الكارت وبدء المهمة</span>
+               </div>
+            </div>
           </div>
 
-          {/* الأكشن */}
-          <div className="flex flex-col gap-3">
+          {/* --- ظهر الكارت (Back) --- */}
+          <div className="absolute w-full h-full backface-hidden rotate-y-180 bg-[#0f0f0f] rounded-[2rem] border border-purple-500/30 shadow-2xl p-6 flex flex-col overflow-y-auto custom-scrollbar">
+            <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-800">
+              <h3 className="text-xl font-bold text-white">تفاصيل المهمة</h3>
+              {task.resourceURL && (
+                <a 
+                  href={task.resourceURL} 
+                  target="_blank" 
+                  rel="noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="p-2 bg-blue-900/30 text-blue-400 rounded-lg hover:bg-blue-900/50 transition-colors"
+                >
+                  <ExternalLink size={20} />
+                </a>
+              )}
+            </div>
+
+            <div className="flex-1 space-y-4">
+              {task.tasks.map((step, i) => (
+                <div key={i} className="flex gap-3 p-3 bg-[#18181b] rounded-xl border border-gray-800">
+                  <div className="min-w-[24px] h-6 flex items-center justify-center bg-purple-600 rounded-full text-xs font-bold text-white mt-1">
+                    {i + 1}
+                  </div>
+                  <p className="text-gray-300 text-sm leading-relaxed" style={{direction: 'rtl'}}>{step}</p>
+                </div>
+              ))}
+            </div>
+
             <button 
               onClick={handleComplete}
-              className="w-full py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-all transform active:scale-95 shadow-lg shadow-purple-900/20"
+              className="mt-6 w-full py-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-green-900/20 transform transition active:scale-95"
             >
-              <CheckCircle className="w-5 h-5" />
-              <span>إتمام المهمة (+150 XP)</span>
-            </button>
-            
-            <button 
-              onClick={handleSkip}
-              className="text-gray-500 text-xs hover:text-gray-300 py-2 transition-colors"
-            >
-              تخطي هذا اليوم (بدون نقاط)
+              <CheckCircle size={20} />
+              <span>إتمام والحصول على المكافأة</span>
             </button>
           </div>
+
         </div>
-      </main>
+      </div>
+      
+      {/* 3. الفوتر (Streak) */}
+      <div className="text-center text-gray-500 text-sm mt-4">
+        Streak الحالي: <span className="text-orange-500 font-bold">{save.streak} أيام</span> 🔥
+      </div>
     </div>
   );
 }
