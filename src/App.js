@@ -2,13 +2,17 @@ import React, { useState, useEffect, useMemo } from 'react';
 import planData from './plan.json';
 import Roadmap from './components/Roadmap';
 import ActiveMission from './components/ActiveMission';
-import HunterLicense from './components/HunterLicense'; // بديل الـ Trophies
+import HunterLicense from './components/HunterLicense';
 import TheOracle from './components/TheOracle';
-import Navigation from './components/Navigation'; // النافبار الجديد
+import Navigation from './components/Navigation';
 
 function App() {
-  // 1. إدارة الحالة (State)
-  const [view, setView] = useState(() => localStorage.getItem('batman_view') || 'roadmap');
+  // 1. الحالة (State)
+  const [view, setView] = useState(() => {
+    const saved = localStorage.getItem('batman_view');
+    if (!saved || saved === 'dashboard' || saved === 'home') return 'roadmap';
+    return saved;
+  });
   
   const [completedDays, setCompletedDays] = useState(() => {
     const saved = localStorage.getItem('batman_completed');
@@ -27,33 +31,29 @@ function App() {
     return now;
   });
 
-  // حفظ الحالة
   useEffect(() => { localStorage.setItem('batman_view', view); }, [view]);
   useEffect(() => { 
     if (selectedDayId) localStorage.setItem('batman_selected_day_id', selectedDayId); 
   }, [selectedDayId]);
 
-  // 2. معالجة البيانات (Data Processing)
+  // 2. معالجة البيانات
   const phasesOrder = [1, 3, 2, 4, 5, 6, 7, 8, 9, 10, 11]; 
-
   const organizedData = useMemo(() => {
     let globalCounter = 0;
     const result = [];
     const processPhase = (pid) => {
       const phase = planData.phases.find(p => p.id === pid);
       if (!phase) return;
-      
       const days = planData.days
         .filter(d => d.phaseId === pid)
         .map(d => ({
           ...d,
           uniqueId: `day_${globalCounter}`,
           dayNumber: globalCounter + 1, 
-          globalId: globalCounter++, // للحفاظ على التوافق
+          globalId: globalCounter++,
           isBoss: d.lessonTitle.toLowerCase().includes("project") || d.lessonTitle.toLowerCase().includes("capstone"),
           hoursPlanned: d.hoursPlanned || 4 
         }));
-
       if (days.length > 0) result.push({ ...phase, days });
     };
     phasesOrder.forEach(pid => processPhase(pid));
@@ -61,7 +61,6 @@ function App() {
     return result;
   }, []);
 
-  // 3. الدوال المساعدة
   const getSelectedDayObject = () => {
     if (!selectedDayId) return null;
     for (const phase of organizedData) {
@@ -72,15 +71,19 @@ function App() {
   };
   const selectedDayObj = getSelectedDayObject();
 
+  // --- دوال الإنجاز والتراجع ---
+
+  // 1. إنجاز يوم واحد
   const handleComplete = (id) => {
     if (!completedDays.includes(id)) {
       const newCompleted = [...completedDays, id];
       setCompletedDays(newCompleted);
       localStorage.setItem('batman_completed', JSON.stringify(newCompleted));
     }
-    setView('roadmap'); // الرجوع للماب بعد الإنجاز
+    setView('roadmap');
   };
 
+  // 2. التراجع عن يوم واحد (موجودة سابقاً)
   const toggleDayCompletion = (id) => {
     let newCompleted;
     if (completedDays.includes(id)) {
@@ -92,22 +95,36 @@ function App() {
     localStorage.setItem('batman_completed', JSON.stringify(newCompleted));
   };
 
+  // 3. (جديد) التراجع عن مرحلة/شهر كامل
+  const handleRevokePhase = (phaseId) => {
+    if (window.confirm(`⚠️ WARNING: You are about to wipe all progress for Phase ${phaseId}.\nAre you sure you want to reset this sector?`)) {
+        // نحدد المرحلة المطلوبة
+        const phase = organizedData.find(p => p.id === phaseId);
+        if (!phase) return;
+        
+        // نجمع كل الـ IDs الخاصة بأيام هذه المرحلة
+        const phaseDayIds = phase.days.map(d => d.uniqueId);
+        
+        // نحذف هذه الـ IDs من قائمة المنجزات
+        const newCompleted = completedDays.filter(id => !phaseDayIds.includes(id));
+        
+        setCompletedDays(newCompleted);
+        localStorage.setItem('batman_completed', JSON.stringify(newCompleted));
+    }
+  };
+
   const handleResetSystem = () => {
-    if (window.confirm("⚠️ SECURITY ALERT: FACTORY RESET INITIATED.\nAre you sure you want to wipe your Hunter License?")) {
+    if (window.confirm("⚠️ SECURITY ALERT: FACTORY RESET INITIATED.\nAre you sure?")) {
       setCompletedDays([]);
       localStorage.removeItem('batman_completed');
       window.location.reload();
     }
   };
 
-  // 4. العرض (Render)
   return (
     <div className="min-h-screen bg-[#050505] text-gray-200 font-sans overflow-hidden selection:bg-[#8a0000] selection:text-white">
-      
-      {/* Background Texture */}
       <div className="fixed inset-0 z-0 opacity-20 pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]" />
       
-      {/* Main Content */}
       <main className="relative z-10 h-screen overflow-y-auto pb-24 scrollbar-hide px-4 md:px-8 pt-6">
         
         {view === 'roadmap' && (
@@ -115,6 +132,7 @@ function App() {
             data={organizedData} 
             completedDays={completedDays}
             onSelectDay={(day) => { setSelectedDayId(day.uniqueId); setView('mission'); }}
+            onRevokePhase={handleRevokePhase} // <-- تمرير الدالة الجديدة هنا
           />
         )}
 
@@ -146,7 +164,6 @@ function App() {
         )}
       </main>
 
-      {/* Floating Navigation Gadget */}
       <Navigation currentView={view} setView={setView} />
     </div>
   );
