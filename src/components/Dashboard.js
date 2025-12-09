@@ -1,8 +1,8 @@
 import React from 'react';
-import { Play, Activity, Clock } from 'lucide-react';
+import { Play, Activity, Clock, BrainCircuit } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 
-export default function Dashboard({ stats, nextMission, onStartMission }) {
+export default function Dashboard({ stats, nextMission, onStart, onOpenOracle }) {
   const data = [
     { name: 'Done', value: stats.completed },
     { name: 'Left', value: stats.total - stats.completed },
@@ -11,8 +11,9 @@ export default function Dashboard({ stats, nextMission, onStartMission }) {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-end border-b border-[#2a2a2a] pb-6">
+      
+      {/* Header with Oracle Button */}
+      <div className="flex flex-row justify-between items-end border-b border-[#2a2a2a] pb-6">
         <div>
           <h1 className="text-4xl md:text-6xl font-black text-white tracking-tighter uppercase">
             Batcomputer<span className="text-[#8a0000]">.</span>
@@ -21,15 +22,18 @@ export default function Dashboard({ stats, nextMission, onStartMission }) {
             SYSTEM STATUS: ONLINE // USER: BRUCE
           </p>
         </div>
+        <button onClick={onOpenOracle} className="hidden md:flex flex-col items-center gap-1 text-gray-500 hover:text-[#8a0000] transition-colors">
+            <BrainCircuit size={24} />
+            <span className="text-[10px] font-mono">ORACLE</span>
+        </button>
       </div>
 
       {/* Next Mission Banner */}
       {nextMission ? (
         <div 
-            onClick={() => onStartMission(nextMission)}
+            onClick={() => onStart(nextMission)}
             className="relative h-64 md:h-96 w-full rounded-2xl overflow-hidden border border-[#2a2a2a] group cursor-pointer hover:border-[#8a0000] transition-all duration-500"
         >
-            {/* Dark Overlay */}
             <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent z-10" />
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-gray-800 via-black to-black opacity-30 z-0" />
             
@@ -52,19 +56,22 @@ export default function Dashboard({ stats, nextMission, onStartMission }) {
         </div>
       ) : (
         <div className="p-12 text-center border border-green-900/30 bg-green-900/5 rounded-2xl">
-            <h2 className="text-2xl text-green-500 font-mono">ALL OBJECTIVES CLEARED.</h2>
+            <h2 className="text-2xl text-green-500 font-mono">ALL OBJECTIVES CLEARED. GOTHAM IS SAFE.</h2>
         </div>
       )}
 
       {/* Analytics Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
          <StatCard icon={<Activity />} title="Completion" value={`${stats.percent}%`} />
-         <StatCard icon={<Clock />} title="Days Done" value={stats.completed} />
-         <div className="bg-[#0f0f0f] border border-[#1f1f1f] p-4 rounded-xl h-32 flex items-center justify-center">
+         <StatCard icon={<Clock />} title="Missions Done" value={stats.completed} />
+         <div className="bg-[#0f0f0f] border border-[#1f1f1f] p-4 rounded-xl h-32 flex items-center justify-center relative">
+             <div className="absolute inset-0 flex items-center justify-center text-xs font-mono text-gray-600">
+                 {stats.completed}/{stats.total}
+             </div>
             <div className="w-20 h-20">
                 <ResponsiveContainer>
                     <PieChart>
-                        <Pie data={data} innerRadius={25} outerRadius={35} paddingAngle={2} dataKey="value" stroke="none">
+                        <Pie data={data} innerRadius={28} outerRadius={35} paddingAngle={5} dataKey="value" stroke="none">
                             {data.map((entry, index) => (
                                 <Cell key={index} fill={COLORS[index % COLORS.length]} />
                             ))}
