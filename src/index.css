@@ -2,29 +2,36 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --bg-primary: #050505;   /* Vantablack */
+  --bg-secondary: #141414; /* Netflix Card Grey */
+  --accent-red: #8a0000;   /* Blood Red */
+  --text-main: #e5e5e5;
+  --text-muted: #757575;
+}
+
 body {
-  background-color: #0b0c10;
-  color: #c5c6c7;
-  font-family: 'Segoe UI', sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-main);
+  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   overflow-x: hidden;
 }
 
-/* --- Hunter Card 3D Effect --- */
-.perspective-1000 { perspective: 1000px; }
-.transform-style-3d { transform-style: preserve-3d; }
-.backface-hidden { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
-.rotate-y-180 { transform: rotateY(180deg); }
+/* Custom Scrollbar */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: var(--bg-primary); }
+::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent-red); }
 
-/* Neon Glows */
-.hunter-glow {
-  box-shadow: 0 0 15px #66fcf1, inset 0 0 10px rgba(102, 252, 241, 0.2);
-}
-.boss-glow {
-  box-shadow: 0 0 20px #ff003c, inset 0 0 10px rgba(255, 0, 60, 0.2);
-}
+/* Utilities */
+.text-batman { color: var(--accent-red); }
+.bg-batman { background-color: var(--accent-red); }
+.border-batman { border-color: var(--accent-red); }
 
-/* Scrollbar */
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: #0b0c10; }
-::-webkit-scrollbar-thumb { background: #1f2833; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #66fcf1; }
+/* Holberton Terminal Effect */
+.terminal-window {
+  background-color: #0c0c0c;
+  border: 1px solid #333;
+  box-shadow: 0 0 20px rgba(0,0,0,0.8);
+  font-family: 'Courier New', monospace;
+}
