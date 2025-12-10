@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { Bot, BrainCircuit, Send, AlertTriangle, RefreshCw, Sparkles, BookOpen, Key, Wifi } from 'lucide-react';
+import { Bot, BrainCircuit, Send, AlertTriangle, RefreshCw, Sparkles, BookOpen, Key, Wifi, List } from 'lucide-react';
 
 export default function TheOracle({ organizedData, completedDays }) {
   
   const [apiKey, setApiKey] = useState(() => localStorage.getItem('gemini_key') || '');
 
-  // 1. تحديد الدرس الحالي أو استخدام بديل آمن
+  // تحديد الدرس الحالي
   const currentDay = (() => {
     if (organizedData && organizedData.length > 0) {
         for (const phase of organizedData) {
@@ -35,45 +35,75 @@ export default function TheOracle({ organizedData, completedDays }) {
     localStorage.setItem('gemini_key', k);
   };
 
-  // --- دوال الاتصال (تم التعديل لاستخدام gemini-pro) ---
+  // --- الدالة الذكية للاتصال (Smart Fetch) ---
   const callGemini = async (promptText) => {
     if (!apiKey) {
       setError("No API Key found!");
       return null;
     }
-    
-    try {
-      // التعديل هنا: استخدمنا gemini-pro بدلاً من gemini-1.5-flash
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] })
-      });
 
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.error?.message || response.statusText);
+    // قائمة الموديلات التي سنجربها بالترتيب
+    const modelsToTry = [
+      "gemini-1.5-flash",
+      "gemini-1.5-pro",
+      "gemini-1.0-pro",
+      "gemini-pro"
+    ];
+
+    for (const model of modelsToTry) {
+      try {
+        console.log(`Trying model: ${model}...`);
+        
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] })
+        });
+
+        if (!response.ok) {
+          // لو فشل الموديل ده، جرب اللي بعده
+          continue; 
+        }
+
+        const data = await response.json();
+        // لو نجح، رجع النتيجة واخرج من الدالة
+        return data.candidates[0].content.parts[0].text;
+
+      } catch (err) {
+        console.warn(`Model ${model} failed.`);
       }
-
-      const data = await response.json();
-      return data.candidates[0].content.parts[0].text;
-
-    } catch (err) {
-      console.error(err);
-      setError(err.message);
-      setStatus('idle');
-      return null;
     }
+
+    // لو كل الموديلات فشلت
+    setError("All AI models failed. Click 'Check Models' to debug.");
+    setStatus('idle');
+    return null;
   };
 
-  const testConnection = async () => {
-      setError('');
-      setStatus('loading');
-      const res = await callGemini("Say 'Connection Verified'.");
-      if (res) {
-          alert("✅ " + res);
-          setStatus('idle');
+  // --- دالة لكشف الموديلات المتاحة لك (Debugging) ---
+  const checkAvailableModels = async () => {
+    setError('');
+    setStatus('loading');
+    try {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+      const data = await response.json();
+      
+      if (data.models) {
+        // فلترة الموديلات التي تدعم الكتابة (generateContent)
+        const validModels = data.models
+          .filter(m => m.supportedGenerationMethods.includes("generateContent"))
+          .map(m => m.name.replace("models/", ""));
+        
+        alert("✅ Available Models for you:\n" + validModels.join("\n"));
+        setStatus('idle');
+      } else {
+        alert("❌ Error: " + JSON.stringify(data));
+        setStatus('idle');
       }
+    } catch (e) {
+      setError(e.message);
+      setStatus('idle');
+    }
   };
 
   const generateChallenge = async () => {
@@ -86,7 +116,7 @@ export default function TheOracle({ organizedData, completedDays }) {
       Act as a strict coding mentor.
       Topic: "${safeTopic}".
       Sub-topics: ${safeTopics.join(', ')}.
-      Task: Ask ONE tricky conceptual question to test understanding.
+      Task: Ask ONE tricky conceptual question.
       Do not answer it.
     `;
 
@@ -133,7 +163,7 @@ export default function TheOracle({ organizedData, completedDays }) {
            <h1 className="text-3xl font-black text-white uppercase tracking-tighter">
              The <span className="text-purple-500">Oracle</span>
            </h1>
-           <p className="text-gray-400 text-xs font-mono">SYSTEM ONLINE</p>
+           <p className="text-gray-400 text-xs font-mono">AUTO-DETECT MODEL</p>
         </div>
       </div>
 
@@ -172,8 +202,8 @@ export default function TheOracle({ organizedData, completedDays }) {
                        <button onClick={generateChallenge} className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-8 rounded-full shadow-[0_0_20px_rgba(147,51,234,0.4)] flex items-center justify-center gap-2">
                           <Sparkles size={18} /> START TEST
                        </button>
-                       <button onClick={testConnection} className="bg-[#222] border border-[#333] hover:bg-[#333] text-gray-400 text-xs py-2 px-4 rounded-full flex items-center justify-center gap-2">
-                          <Wifi size={14} /> Test Connection
+                       <button onClick={checkAvailableModels} className="bg-[#222] border border-[#333] hover:bg-[#333] text-gray-400 text-xs py-2 px-4 rounded-full flex items-center justify-center gap-2">
+                          <List size={14} /> Check Models
                        </button>
                    </div>
                </div>
@@ -182,7 +212,7 @@ export default function TheOracle({ organizedData, completedDays }) {
            {status === 'loading' && (
                <div className="flex-1 flex flex-col items-center justify-center relative z-10">
                    <div className="w-16 h-16 border-4 border-purple-500/30 border-t-purple-500 rounded-full animate-spin mb-4"></div>
-                   <p className="text-purple-400 font-mono text-sm animate-pulse">Processing...</p>
+                   <p className="text-purple-400 font-mono text-sm animate-pulse">Scanning AI Models...</p>
                </div>
            )}
 
@@ -222,4 +252,4 @@ export default function TheOracle({ organizedData, completedDays }) {
       )}
     </div>
   );
-              } 
+}
