@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Map, BrainCircuit, Wallet, X, Menu } from 'lucide-react';
+import { Map, BrainCircuit, Wallet, X, Menu, Shield } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Navigation({ currentView, setView }) {
@@ -7,6 +7,7 @@ export default function Navigation({ currentView, setView }) {
 
   const menuItems = [
     { id: 'roadmap', icon: <Map size={24} />, label: 'Map' },
+    { id: 'ops', icon: <Shield size={24} />, label: 'Spec Ops' }, // New Item
     { id: 'license', icon: <Wallet size={24} />, label: 'License' },
     { id: 'oracle', icon: <BrainCircuit size={24} />, label: 'Oracle' },
   ];
@@ -51,4 +52,4 @@ export default function Navigation({ currentView, setView }) {
       </button>
     </div>
   );
-        }
+}
