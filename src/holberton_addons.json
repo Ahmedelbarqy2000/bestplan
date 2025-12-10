@@ -1,0 +1,302 @@
+{
+  "meta": {
+    "name": "holberton_addons",
+    "description": "Side-track modules inspired by Holberton/ALX advanced low-level and systems topics that are NOT covered (or lightly covered) in the main plan.json. This file is a separate curriculum: do NOT modify plan.json. Use this as an independent path for 'missing' advanced system-level skills and projects.",
+    "generated_by": "ChatGPT for Ahmed",
+    "generated_at": "2025-12-09T23:07:57.661349Z",
+    "note": "This file is a companion side-track. It should be hosted/displayed separately from the main roadmap (plan.json). Each module has recommended placement relative to main plan phases (by phaseId)."
+  },
+  "modules": [
+    {
+      "id": 1,
+      "title": "Advanced C: Memory, Pointers & UB",
+      "summary": "Deep dive into memory model, pointer arithmetic, undefined behaviour, aliasing, stack vs heap, alignment, and safe/unsafe patterns in C.",
+      "objectives": [
+        "Master pointer arithmetic and complex data structures in C",
+        "Understand stack/heap layout, memory alignment and padding",
+        "Detect and avoid undefined behavior",
+        "Practice with memory-manipulating algorithms"
+      ],
+      "estimated_hours": 60,
+      "recommended_start_after_phase": 3,
+      "recommended_order": 1,
+      "resources": [
+        {
+          "name": "CS:APP book (Chapters on memory)",
+          "url": "https://csapp.cs.cmu.edu/"
+        },
+        {
+          "name": "Undefined Behavior Guide",
+          "url": "https://wiki.sei.cmu.edu/confluence/display/c/Undefined+Behavior"
+        },
+        {
+          "name": "Valgrind manual",
+          "url": "http://valgrind.org/docs/manual/manual.html"
+        }
+      ],
+      "optional": false
+    },
+    {
+      "id": 2,
+      "title": "System Programming: Processes, Threads & Syscalls",
+      "summary": "Low-level system programming on Unix: creating processes, inter-process communication, threads, synchronization primitives, and common syscalls.",
+      "objectives": [
+        "Create/manage processes with fork/exec/wait",
+        "Use pipes, sockets and shared memory",
+        "Write multi-threaded programs and use mutexes/condition variables",
+        "Understand race conditions and deadlocks and how to debug them"
+      ],
+      "estimated_hours": 70,
+      "recommended_start_after_phase": 3,
+      "recommended_order": 2,
+      "resources": [
+        {
+          "name": "The Linux Programming Interface (TLPI)",
+          "url": "http://man7.org/tlpi/"
+        },
+        {
+          "name": "POSIX Threads Tutorial",
+          "url": "https://computing.llnl.gov/tutorials/pthreads/"
+        },
+        {
+          "name": "man7 Linux syscall docs",
+          "url": "https://man7.org/linux/man-pages/"
+        }
+      ],
+      "optional": false
+    },
+    {
+      "id": 3,
+      "title": "Debugging & Diagnostic Tools (gdb, valgrind, strace, ltrace)",
+      "summary": "Practical mastery of debugging and diagnostic tools used in system-level development and large C projects.",
+      "objectives": [
+        "Use gdb to step through programs, inspect memory and backtraces",
+        "Use valgrind to find leaks and undefined memory access",
+        "Use strace/ltrace to diagnose system call and library call behaviour",
+        "Integrate tooling into daily workflow and CI checks"
+      ],
+      "estimated_hours": 40,
+      "recommended_start_after_phase": 3,
+      "recommended_order": 3,
+      "resources": [
+        {
+          "name": "gdb tutorial - GNU",
+          "url": "https://sourceware.org/gdb/current/onlinedocs/gdb/"
+        },
+        {
+          "name": "Valgrind manual",
+          "url": "http://valgrind.org/docs/manual/manual.html"
+        },
+        {
+          "name": "strace README",
+          "url": "https://strace.io/"
+        }
+      ],
+      "optional": false
+    },
+    {
+      "id": 4,
+      "title": "Low-level Networking & Sockets",
+      "summary": "Practical socket programming in C: TCP/UDP, blocking vs non-blocking I/O, select/poll/epoll, and basic network debugging.",
+      "objectives": [
+        "Write TCP and UDP clients and servers in C",
+        "Understand and use select/poll/epoll for scalable servers",
+        "Diagnose networking issues with tcpdump/wireshark/netstat"
+      ],
+      "estimated_hours": 50,
+      "recommended_start_after_phase": 6,
+      "recommended_order": 4,
+      "resources": [
+        {
+          "name": "Beej's Guide to Network Programming",
+          "url": "https://beej.us/guide/bgnet/"
+        },
+        {
+          "name": "UNIX Network Programming (Stevens)",
+          "url": "https://www.kohala.com/start/unix_network_programming/"
+        }
+      ],
+      "optional": false
+    },
+    {
+      "id": 5,
+      "title": "Operating Systems Internals (practical)",
+      "summary": "Hands-on OS concepts: processes scheduling, memory management, virtual memory, page tables, context switch, and a mini OS lab.",
+      "objectives": [
+        "Understand virtual memory and page tables",
+        "Implement small kernel modules or simple OS experiments (user-mode emulation)",
+        "Study scheduling and resource management concepts with practical labs"
+      ],
+      "estimated_hours": 80,
+      "recommended_start_after_phase": 2,
+      "recommended_order": 5,
+      "resources": [
+        {
+          "name": "MIT 6.828 Operating System Engineering",
+          "url": "https://pdos.csail.mit.edu/6.828/"
+        },
+        {
+          "name": "Operating Systems: Three Easy Pieces",
+          "url": "https://pages.cs.wisc.edu/~remzi/OSTEP/"
+        }
+      ],
+      "optional": false
+    },
+    {
+      "id": 6,
+      "title": "Compiler & Toolchain Practical (Front-End + Build)",
+      "summary": "Practical modules on lexing, parsing, ASTs and simple codegen; reading and extending small compilers; makefiles and build systems.",
+      "objectives": [
+        "Implement lexer and parser for a tiny language",
+        "Build a simple AST and generate basic target code or bytecode",
+        "Master Makefiles, CMake basics and reproducible builds"
+      ],
+      "estimated_hours": 60,
+      "recommended_start_after_phase": 2,
+      "recommended_order": 6,
+      "resources": [
+        {
+          "name": "Crafting Interpreters",
+          "url": "https://craftinginterpreters.com/"
+        },
+        {
+          "name": "Make manual",
+          "url": "https://www.gnu.org/software/make/manual/make.html"
+        }
+      ],
+      "optional": false
+    },
+    {
+      "id": 7,
+      "title": "Concurrency & Parallelism (advanced)",
+      "summary": "Advanced concurrency patterns, memory models, lock-free programming basics, atomics, and performance considerations.",
+      "objectives": [
+        "Understand C11 memory model/atomics",
+        "Implement producer-consumer, lock-free queues at exercise level",
+        "Profile multithreaded performance and avoid false sharing"
+      ],
+      "estimated_hours": 50,
+      "recommended_start_after_phase": 3,
+      "recommended_order": 7,
+      "resources": [
+        {
+          "name": "C11 Atomics overview",
+          "url": "https://en.cppreference.com/w/c/atomic"
+        },
+        {
+          "name": "Concurrency in Practice (patterns)",
+          "url": "https://www.oreilly.com/library/view/java-concurrency-in/0321349601/ (concepts applicable)"
+        }
+      ],
+      "optional": true
+    },
+    {
+      "id": 8,
+      "title": "Profiling & Performance Optimization",
+      "summary": "Using profilers, cache-awareness, CPU performance counters, optimizing hot paths and algorithmic bottlenecks.",
+      "objectives": [
+        "Use perf, gprof and other profilers to find hotspots",
+        "Understand cache locality and data structure layout",
+        "Apply basic SIMD/vectorization ideas at high level"
+      ],
+      "estimated_hours": 40,
+      "recommended_start_after_phase": 4,
+      "recommended_order": 8,
+      "resources": [
+        {
+          "name": "Linux perf tutorial",
+          "url": "https://perf.wiki.kernel.org/index.php/Main_Page"
+        },
+        {
+          "name": "gprof manual",
+          "url": "https://sourceware.org/binutils/docs/gprof/"
+        }
+      ],
+      "optional": true
+    },
+    {
+      "id": 9,
+      "title": "Security Basics & Reverse Engineering Intro",
+      "summary": "Foundational security topics: buffer overflows, DEP/ASLR, basic exploitation thinking and reversing small C programs.",
+      "objectives": [
+        "Understand classic vulnerabilities and mitigation techniques",
+        "Practice safe C coding patterns to avoid security bugs",
+        "Use basic reversing tools (strings, objdump, radare/cutter)"
+      ],
+      "estimated_hours": 45,
+      "recommended_start_after_phase": 3,
+      "recommended_order": 9,
+      "resources": [
+        {
+          "name": "Smash The Stack/Intro to exploitation resources",
+          "url": "https://www.corelan.be/"
+        },
+        {
+          "name": "Practical Reverse Engineering resources",
+          "url": "https://practicalreverseengineering.com/"
+        }
+      ],
+      "optional": true
+    },
+    {
+      "id": 10,
+      "title": "DevOps & Containers Practical",
+      "summary": "Hands-on with Docker, containers, basic orchestration, CI pipelines, infra as code basics and deploying simple system apps.",
+      "objectives": [
+        "Containerize C and web apps using Docker",
+        "Create simple CI pipeline (GitHub Actions) for building and testing C projects",
+        "Understand basic infra as code (Terraform overview) and logging/monitoring basics"
+      ],
+      "estimated_hours": 50,
+      "recommended_start_after_phase": 8,
+      "recommended_order": 10,
+      "resources": [
+        {
+          "name": "Docker docs",
+          "url": "https://docs.docker.com/"
+        },
+        {
+          "name": "GitHub Actions docs",
+          "url": "https://docs.github.com/en/actions"
+        }
+      ],
+      "optional": false
+    },
+    {
+      "id": 11,
+      "title": "Low-level Capstone Projects (Shell, Mini Debugger, Networked Server)",
+      "summary": "Project-based capstone: implement a simple shell, small debugger, and a networked multi-client server in C combining previous modules.",
+      "objectives": [
+        "Ship production-quality small system projects",
+        "Apply debugging, profiling and testing practices",
+        "Create documentation and CI for projects"
+      ],
+      "estimated_hours": 120,
+      "recommended_start_after_phase": 8,
+      "recommended_order": 11,
+      "resources": [
+        {
+          "name": "Holberton-style projects examples (AirBnB/C projects inspiration)",
+          "url": ""
+        }
+      ],
+      "optional": false
+    }
+  ],
+  "placement_guidance": {
+    "explanation": "Each module includes recommended_start_after_phase which maps to plan.json phaseId. Example: 3 means 'after Intro Programming + C Deep'. Use this file as a side-track visible in a separate 'Tracks' UI. The main roadmap (plan.json) must not be altered.",
+    "phase_map": {
+      "1": "Foundation — Math Core",
+      "2": "Computer Fundamentals & Nand2Tetris",
+      "3": "Intro Programming + C Deep",
+      "4": "C++ Modern",
+      "5": "Python & Scripting",
+      "6": "Backend Foundation",
+      "7": "Frontend & UX",
+      "8": "Fullstack Projects & Scaling",
+      "9": "AI & ML Applied",
+      "10": "Specializations & Electives",
+      "11": "Career Prep + Capstone"
+    }
+  }
+}
