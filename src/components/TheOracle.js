@@ -1,42 +1,49 @@
-import React, { useState, useEffect } from 'react';
-import { Bot, BrainCircuit, Send, AlertTriangle, RefreshCw, Sparkles, BookOpen, Key } from 'lucide-react';
+import React, { useState } from 'react';
+import { Bot, BrainCircuit, Send, AlertTriangle, RefreshCw, Sparkles, BookOpen, Key, Wifi } from 'lucide-react';
 
 export default function TheOracle({ organizedData, completedDays }) {
   
-  // --- 1. استرجاع المفتاح من ذاكرة المتصفح (الآمنة) ---
-  const [apiKey, setApiKey] = useState(() => {
-    return localStorage.getItem('gemini_key') || '';
-  });
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem('gemini_key') || '');
 
-  // --- 2. تحديد الدرس الحالي ---
+  // --- 1. تحديد الدرس (مع نظام حماية لو مفيش داتا) ---
   const currentDay = (() => {
-    for (const phase of organizedData) {
-      for (const day of phase.days) {
-        if (!completedDays.includes(day.uniqueId)) {
-          return { ...day, phaseName: phase.name };
+    // محاولة إيجاد أول يوم
+    if (organizedData && organizedData.length > 0) {
+        for (const phase of organizedData) {
+            for (const day of phase.days) {
+                if (!completedDays.includes(day.uniqueId)) {
+                return { ...day, phaseName: phase.name };
+                }
+            }
         }
-      }
+        // لو كله خلص
+        return organizedData[organizedData.length-1]?.days[0] || null;
     }
-    return organizedData[organizedData.length-1]?.days[0] || {};
+    return null;
   })();
 
-  // --- States ---
+  // لو مفيش درس (لسه مبدأتش أو في مشكلة)، حط درس افتراضي
+  const safeTopic = currentDay?.lessonTitle || "General Computer Science";
+  const safeTopics = currentDay?.topics || ["Programming Basics", "Logic"];
+
   const [status, setStatus] = useState('idle');
   const [question, setQuestion] = useState('');
   const [userAnswer, setUserAnswer] = useState('');
   const [feedback, setFeedback] = useState(null);
   const [error, setError] = useState('');
 
-  // --- حفظ المفتاح للأبد ---
   const saveKey = (e) => {
     const k = e.target.value;
     setApiKey(k);
-    localStorage.setItem('gemini_key', k); // يحفظه في الموبايل
+    localStorage.setItem('gemini_key', k);
   };
 
-  // --- دوال الاتصال بـ Gemini ---
+  // --- دوال الاتصال ---
   const callGemini = async (promptText) => {
-    if (!apiKey) return null;
+    if (!apiKey) {
+      setError("No API Key found!");
+      return null;
+    }
     
     try {
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
@@ -45,16 +52,31 @@ export default function TheOracle({ organizedData, completedDays }) {
         body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] })
       });
 
-      if (!response.ok) throw new Error(`API Error: ${response.status}`);
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error?.message || response.statusText);
+      }
+
       const data = await response.json();
       return data.candidates[0].content.parts[0].text;
 
     } catch (err) {
       console.error(err);
-      setError("Connection Failed. Check your API Key.");
+      setError(err.message); // هيظهر على الشاشة
       setStatus('idle');
       return null;
     }
+  };
+
+  // زرار اختبار الاتصال فقط
+  const testConnection = async () => {
+      setError('');
+      setStatus('loading');
+      const res = await callGemini("Say 'Hello Hunter' if you can hear me.");
+      if (res) {
+          alert("✅ Connection Successful: " + res);
+          setStatus('idle');
+      }
   };
 
   const generateChallenge = async () => {
@@ -63,11 +85,13 @@ export default function TheOracle({ organizedData, completedDays }) {
     setFeedback(null);
     setUserAnswer('');
 
+    // استخدام الموضوع الآمن (Safe Topic)
     const prompt = `
-      You are "The Oracle", a strict coding mentor.
-      Student is studying: "${currentDay.lessonTitle}" (Topics: ${(currentDay.topics || []).join(', ')}).
-      TASK: Ask ONE tricky conceptual question based on these topics.
-      Do NOT provide the answer.
+      Act as a strict coding mentor.
+      Topic: "${safeTopic}".
+      Sub-topics: ${safeTopics.join(', ')}.
+      Task: Ask ONE tricky conceptual question.
+      Do not answer it yourself.
     `;
 
     const text = await callGemini(prompt);
@@ -84,8 +108,8 @@ export default function TheOracle({ organizedData, completedDays }) {
     const prompt = `
       Question: "${question}".
       Answer: "${userAnswer}".
-      TASK: Grade (0-100) and provide feedback JSON:
-      { "score": 85, "feedback": "...", "action": "..." }
+      Topic: "${safeTopic}".
+      Task: Grade (0-100) and feedback JSON: { "score": 0, "feedback": "...", "action": "..." }
     `;
 
     const text = await callGemini(prompt);
@@ -105,7 +129,6 @@ export default function TheOracle({ organizedData, completedDays }) {
   return (
     <div className="max-w-4xl mx-auto pb-24 pt-6 px-4 animate-in fade-in">
       
-      {/* Header */}
       <div className="flex items-center gap-4 mb-8">
         <div className="p-4 bg-purple-900/20 border border-purple-500 rounded-full shadow-[0_0_30px_rgba(168,85,247,0.3)]">
            <BrainCircuit size={40} className="text-purple-400" />
@@ -114,29 +137,30 @@ export default function TheOracle({ organizedData, completedDays }) {
            <h1 className="text-3xl font-black text-white uppercase tracking-tighter">
              The <span className="text-purple-500">Oracle</span>
            </h1>
-           <p className="text-gray-400 text-xs font-mono">SYSTEM ONLINE</p>
+           <p className="text-gray-400 text-xs font-mono">FAIL-SAFE MODE ACTIVE</p>
         </div>
       </div>
 
-      {/* --- شاشة إدخال المفتاح (تظهر مرة واحدة فقط في العمر) --- */}
       {!apiKey && (
-        <div className="mb-8 p-6 bg-[#111] border border-red-900/50 rounded-xl text-center animate-pulse">
+        <div className="mb-8 p-6 bg-[#111] border border-red-900/50 rounded-xl text-center">
            <Key size={32} className="text-red-500 mx-auto mb-2" />
-           <h3 className="text-white font-bold mb-2">Security Clearance Required</h3>
-           <p className="text-gray-400 text-xs mb-4">
-             Paste your NEW Gemini API Key here once.<br/>
-             It will be saved securely on your device.
-           </p>
+           <h3 className="text-white font-bold mb-2">Enter API Key</h3>
            <input 
              type="text" 
-             placeholder="Paste Key (AIza...)" 
+             placeholder="Paste Key Here..." 
              onChange={saveKey}
-             className="bg-black border border-[#333] text-white px-4 py-3 rounded-lg w-full max-w-sm text-center focus:border-purple-500 outline-none font-mono"
+             className="bg-black border border-[#333] text-white px-4 py-3 rounded-lg w-full max-w-sm text-center focus:border-purple-500 outline-none"
            />
         </div>
       )}
 
-      {/* باقي الواجهة كما هي (تظهر فقط عند وجود المفتاح) */}
+      {/* صندوق الخطأ الأحمر (مهم جداً عشان نعرف المشكلة فين) */}
+      {error && (
+        <div className="p-4 bg-red-900/20 border border-red-500 text-white rounded-xl mb-6 font-mono text-sm break-words">
+            <strong>❌ ERROR:</strong> {error}
+        </div>
+      )}
+
       {apiKey && (
         <div className="bg-[#0a0a0a] border border-[#222] rounded-2xl overflow-hidden min-h-[400px] flex flex-col relative shadow-2xl">
            <div className="absolute inset-0 bg-[linear-gradient(rgba(168,85,247,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(168,85,247,0.03)_1px,transparent_1px)] bg-[size:50px_50px]" />
@@ -146,18 +170,26 @@ export default function TheOracle({ organizedData, completedDays }) {
                    <Bot size={64} className="text-purple-500/50 mb-4" />
                    <h2 className="text-2xl font-bold text-white mb-2">Mentor Ready</h2>
                    <p className="text-gray-400 max-w-md mb-8">
-                      Target: <span className="text-purple-400 font-mono">"{currentDay.lessonTitle}"</span>
+                      Target: <span className="text-purple-400 font-mono font-bold">"{safeTopic}"</span>
                    </p>
-                   <button onClick={generateChallenge} className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-8 rounded-full shadow-[0_0_20px_rgba(147,51,234,0.4)] transition-all transform hover:scale-105 flex items-center gap-2">
-                      <Sparkles size={18} /> START TEST
-                   </button>
+                   
+                   <div className="flex flex-col gap-3 w-full max-w-xs">
+                       <button onClick={generateChallenge} className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-8 rounded-full shadow-[0_0_20px_rgba(147,51,234,0.4)] flex items-center justify-center gap-2">
+                          <Sparkles size={18} /> START TEST
+                       </button>
+                       
+                       {/* زرار اختبار الاتصال */}
+                       <button onClick={testConnection} className="bg-[#222] border border-[#333] hover:bg-[#333] text-gray-400 text-xs py-2 px-4 rounded-full flex items-center justify-center gap-2">
+                          <Wifi size={14} /> Test Connection
+                       </button>
+                   </div>
                </div>
            )}
 
            {status === 'loading' && (
                <div className="flex-1 flex flex-col items-center justify-center relative z-10">
                    <div className="w-16 h-16 border-4 border-purple-500/30 border-t-purple-500 rounded-full animate-spin mb-4"></div>
-                   <p className="text-purple-400 font-mono text-sm animate-pulse">Processing...</p>
+                   <p className="text-purple-400 font-mono text-sm animate-pulse">Communicating with AI...</p>
                </div>
            )}
 
@@ -187,15 +219,6 @@ export default function TheOracle({ organizedData, completedDays }) {
                       <div className="bg-[#1a1a1a] border border-[#333] p-6 rounded-xl mb-6">
                           <p className="text-gray-200 leading-relaxed">{feedback.feedback}</p>
                       </div>
-                      {feedback.action && (
-                          <div className="bg-blue-900/10 border border-blue-900/30 p-4 rounded-xl flex items-start gap-3 mb-8">
-                              <BookOpen size={20} className="text-blue-400 mt-1" />
-                              <div>
-                                  <h4 className="text-blue-400 font-bold text-sm mb-1">Recommendation</h4>
-                                  <p className="text-gray-400 text-sm">{feedback.action}</p>
-                              </div>
-                          </div>
-                      )}
                       <button onClick={generateChallenge} className="w-full bg-[#222] hover:bg-[#333] text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2">
                           <RefreshCw size={18} /> NEW QUESTION
                       </button>
@@ -206,4 +229,4 @@ export default function TheOracle({ organizedData, completedDays }) {
       )}
     </div>
   );
-        } 
+}
