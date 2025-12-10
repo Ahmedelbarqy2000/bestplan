@@ -35,19 +35,19 @@ export default function TheOracle({ organizedData, completedDays }) {
     localStorage.setItem('gemini_key', k);
   };
 
-  // --- الدالة الذكية للاتصال (Smart Fetch) ---
+  // --- الدالة الذكية للاتصال (تم التحديث بناءً على الصورة) ---
   const callGemini = async (promptText) => {
     if (!apiKey) {
       setError("No API Key found!");
       return null;
     }
 
-    // قائمة الموديلات التي سنجربها بالترتيب
+    // هذه الموديلات مأخوذة من الصورة التي أرسلتها
     const modelsToTry = [
-      "gemini-1.5-flash",
-      "gemini-1.5-pro",
-      "gemini-1.0-pro",
-      "gemini-pro"
+      "gemini-2.0-flash",       // الخيار الأول (سريع وقوي)
+      "gemini-2.5-flash",       // الخيار الثاني (الأحدث)
+      "gemini-2.0-flash-lite",  // الخيار الثالث (خفيف جداً)
+      "gemini-1.5-flash"        // احتياطي
     ];
 
     for (const model of modelsToTry) {
@@ -61,12 +61,10 @@ export default function TheOracle({ organizedData, completedDays }) {
         });
 
         if (!response.ok) {
-          // لو فشل الموديل ده، جرب اللي بعده
-          continue; 
+          continue; // لو فشل، جرب اللي بعده
         }
 
         const data = await response.json();
-        // لو نجح، رجع النتيجة واخرج من الدالة
         return data.candidates[0].content.parts[0].text;
 
       } catch (err) {
@@ -74,13 +72,13 @@ export default function TheOracle({ organizedData, completedDays }) {
       }
     }
 
-    // لو كل الموديلات فشلت
-    setError("All AI models failed. Click 'Check Models' to debug.");
+    // لو كله فشل
+    setError("All AI models failed. Please check your API Key quota.");
     setStatus('idle');
     return null;
   };
 
-  // --- دالة لكشف الموديلات المتاحة لك (Debugging) ---
+  // دالة لكشف الموديلات (للتأكد فقط)
   const checkAvailableModels = async () => {
     setError('');
     setStatus('loading');
@@ -89,12 +87,11 @@ export default function TheOracle({ organizedData, completedDays }) {
       const data = await response.json();
       
       if (data.models) {
-        // فلترة الموديلات التي تدعم الكتابة (generateContent)
         const validModels = data.models
           .filter(m => m.supportedGenerationMethods.includes("generateContent"))
           .map(m => m.name.replace("models/", ""));
         
-        alert("✅ Available Models for you:\n" + validModels.join("\n"));
+        alert("✅ Active Models:\n" + validModels.join("\n"));
         setStatus('idle');
       } else {
         alert("❌ Error: " + JSON.stringify(data));
@@ -163,7 +160,7 @@ export default function TheOracle({ organizedData, completedDays }) {
            <h1 className="text-3xl font-black text-white uppercase tracking-tighter">
              The <span className="text-purple-500">Oracle</span>
            </h1>
-           <p className="text-gray-400 text-xs font-mono">AUTO-DETECT MODEL</p>
+           <p className="text-gray-400 text-xs font-mono">MODEL: GEMINI 2.0</p>
         </div>
       </div>
 
@@ -212,7 +209,7 @@ export default function TheOracle({ organizedData, completedDays }) {
            {status === 'loading' && (
                <div className="flex-1 flex flex-col items-center justify-center relative z-10">
                    <div className="w-16 h-16 border-4 border-purple-500/30 border-t-purple-500 rounded-full animate-spin mb-4"></div>
-                   <p className="text-purple-400 font-mono text-sm animate-pulse">Scanning AI Models...</p>
+                   <p className="text-purple-400 font-mono text-sm animate-pulse">Processing with Gemini 2.0...</p>
                </div>
            )}
 
@@ -252,4 +249,4 @@ export default function TheOracle({ organizedData, completedDays }) {
       )}
     </div>
   );
-}
+        } 
