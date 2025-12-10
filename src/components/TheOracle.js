@@ -5,9 +5,8 @@ export default function TheOracle({ organizedData, completedDays }) {
   
   const [apiKey, setApiKey] = useState(() => localStorage.getItem('gemini_key') || '');
 
-  // --- 1. تحديد الدرس (مع نظام حماية لو مفيش داتا) ---
+  // 1. تحديد الدرس الحالي أو استخدام بديل آمن
   const currentDay = (() => {
-    // محاولة إيجاد أول يوم
     if (organizedData && organizedData.length > 0) {
         for (const phase of organizedData) {
             for (const day of phase.days) {
@@ -16,15 +15,13 @@ export default function TheOracle({ organizedData, completedDays }) {
                 }
             }
         }
-        // لو كله خلص
         return organizedData[organizedData.length-1]?.days[0] || null;
     }
     return null;
   })();
 
-  // لو مفيش درس (لسه مبدأتش أو في مشكلة)، حط درس افتراضي
-  const safeTopic = currentDay?.lessonTitle || "General Computer Science";
-  const safeTopics = currentDay?.topics || ["Programming Basics", "Logic"];
+  const safeTopic = currentDay?.lessonTitle || "Software Engineering Basics";
+  const safeTopics = currentDay?.topics || ["Algorithms", "Data Structures"];
 
   const [status, setStatus] = useState('idle');
   const [question, setQuestion] = useState('');
@@ -38,7 +35,7 @@ export default function TheOracle({ organizedData, completedDays }) {
     localStorage.setItem('gemini_key', k);
   };
 
-  // --- دوال الاتصال ---
+  // --- دوال الاتصال (تم التعديل لاستخدام gemini-pro) ---
   const callGemini = async (promptText) => {
     if (!apiKey) {
       setError("No API Key found!");
@@ -46,7 +43,8 @@ export default function TheOracle({ organizedData, completedDays }) {
     }
     
     try {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+      // التعديل هنا: استخدمنا gemini-pro بدلاً من gemini-1.5-flash
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] })
@@ -62,19 +60,18 @@ export default function TheOracle({ organizedData, completedDays }) {
 
     } catch (err) {
       console.error(err);
-      setError(err.message); // هيظهر على الشاشة
+      setError(err.message);
       setStatus('idle');
       return null;
     }
   };
 
-  // زرار اختبار الاتصال فقط
   const testConnection = async () => {
       setError('');
       setStatus('loading');
-      const res = await callGemini("Say 'Hello Hunter' if you can hear me.");
+      const res = await callGemini("Say 'Connection Verified'.");
       if (res) {
-          alert("✅ Connection Successful: " + res);
+          alert("✅ " + res);
           setStatus('idle');
       }
   };
@@ -85,13 +82,12 @@ export default function TheOracle({ organizedData, completedDays }) {
     setFeedback(null);
     setUserAnswer('');
 
-    // استخدام الموضوع الآمن (Safe Topic)
     const prompt = `
       Act as a strict coding mentor.
       Topic: "${safeTopic}".
       Sub-topics: ${safeTopics.join(', ')}.
-      Task: Ask ONE tricky conceptual question.
-      Do not answer it yourself.
+      Task: Ask ONE tricky conceptual question to test understanding.
+      Do not answer it.
     `;
 
     const text = await callGemini(prompt);
@@ -109,7 +105,7 @@ export default function TheOracle({ organizedData, completedDays }) {
       Question: "${question}".
       Answer: "${userAnswer}".
       Topic: "${safeTopic}".
-      Task: Grade (0-100) and feedback JSON: { "score": 0, "feedback": "...", "action": "..." }
+      Task: Grade (0-100) and provide feedback JSON: { "score": 0, "feedback": "...", "action": "..." }
     `;
 
     const text = await callGemini(prompt);
@@ -137,7 +133,7 @@ export default function TheOracle({ organizedData, completedDays }) {
            <h1 className="text-3xl font-black text-white uppercase tracking-tighter">
              The <span className="text-purple-500">Oracle</span>
            </h1>
-           <p className="text-gray-400 text-xs font-mono">FAIL-SAFE MODE ACTIVE</p>
+           <p className="text-gray-400 text-xs font-mono">SYSTEM ONLINE</p>
         </div>
       </div>
 
@@ -149,12 +145,11 @@ export default function TheOracle({ organizedData, completedDays }) {
              type="text" 
              placeholder="Paste Key Here..." 
              onChange={saveKey}
-             className="bg-black border border-[#333] text-white px-4 py-3 rounded-lg w-full max-w-sm text-center focus:border-purple-500 outline-none"
+             className="bg-black border border-[#333] text-white px-4 py-3 rounded-lg w-full max-w-sm text-center focus:border-purple-500 outline-none font-mono"
            />
         </div>
       )}
 
-      {/* صندوق الخطأ الأحمر (مهم جداً عشان نعرف المشكلة فين) */}
       {error && (
         <div className="p-4 bg-red-900/20 border border-red-500 text-white rounded-xl mb-6 font-mono text-sm break-words">
             <strong>❌ ERROR:</strong> {error}
@@ -177,8 +172,6 @@ export default function TheOracle({ organizedData, completedDays }) {
                        <button onClick={generateChallenge} className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-8 rounded-full shadow-[0_0_20px_rgba(147,51,234,0.4)] flex items-center justify-center gap-2">
                           <Sparkles size={18} /> START TEST
                        </button>
-                       
-                       {/* زرار اختبار الاتصال */}
                        <button onClick={testConnection} className="bg-[#222] border border-[#333] hover:bg-[#333] text-gray-400 text-xs py-2 px-4 rounded-full flex items-center justify-center gap-2">
                           <Wifi size={14} /> Test Connection
                        </button>
@@ -189,7 +182,7 @@ export default function TheOracle({ organizedData, completedDays }) {
            {status === 'loading' && (
                <div className="flex-1 flex flex-col items-center justify-center relative z-10">
                    <div className="w-16 h-16 border-4 border-purple-500/30 border-t-purple-500 rounded-full animate-spin mb-4"></div>
-                   <p className="text-purple-400 font-mono text-sm animate-pulse">Communicating with AI...</p>
+                   <p className="text-purple-400 font-mono text-sm animate-pulse">Processing...</p>
                </div>
            )}
 
@@ -229,4 +222,4 @@ export default function TheOracle({ organizedData, completedDays }) {
       )}
     </div>
   );
-}
+              } 
