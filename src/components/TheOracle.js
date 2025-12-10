@@ -1,27 +1,36 @@
 import React, { useState } from 'react';
-import { Bot, BrainCircuit, Send, AlertTriangle, RefreshCw, Sparkles, BookOpen, Key, Wifi, List } from 'lucide-react';
+import { Bot, BrainCircuit, Send, AlertTriangle, RefreshCw, Sparkles, BookOpen, Key, Wifi, Target, Lock } from 'lucide-react';
 
 export default function TheOracle({ organizedData, completedDays }) {
   
   const [apiKey, setApiKey] = useState(() => localStorage.getItem('gemini_key') || '');
 
-  // تحديد الدرس الحالي
+  // 1. تحديد الدرس الحالي من المنهج الأساسي (plan.json) فقط
   const currentDay = (() => {
     if (organizedData && organizedData.length > 0) {
+        // نمشي يوم بيوم بالترتيب
         for (const phase of organizedData) {
             for (const day of phase.days) {
+                // أول يوم نلاقيه مش معمول عليه صح، هو ده يومنا
                 if (!completedDays.includes(day.uniqueId)) {
-                return { ...day, phaseName: phase.name };
+                   return { 
+                     ...day, 
+                     phaseName: phase.name 
+                   };
                 }
             }
         }
+        // لو كله خلص
         return organizedData[organizedData.length-1]?.days[0] || null;
     }
     return null;
   })();
 
-  const safeTopic = currentDay?.lessonTitle || "Software Engineering Basics";
-  const safeTopics = currentDay?.topics || ["Algorithms", "Data Structures"];
+  // استخراج البيانات بدقة
+  const lessonTitle = currentDay?.lessonTitle || "Unknown Lesson";
+  const topics = currentDay?.topics && currentDay.topics.length > 0 
+                 ? currentDay.topics.join(', ') 
+                 : "Core Concepts of this lesson";
 
   const [status, setStatus] = useState('idle');
   const [question, setQuestion] = useState('');
@@ -35,72 +44,34 @@ export default function TheOracle({ organizedData, completedDays }) {
     localStorage.setItem('gemini_key', k);
   };
 
-  // --- الدالة الذكية للاتصال (تم التحديث بناءً على الصورة) ---
   const callGemini = async (promptText) => {
     if (!apiKey) {
       setError("No API Key found!");
       return null;
     }
 
-    // هذه الموديلات مأخوذة من الصورة التي أرسلتها
-    const modelsToTry = [
-      "gemini-2.0-flash",       // الخيار الأول (سريع وقوي)
-      "gemini-2.5-flash",       // الخيار الثاني (الأحدث)
-      "gemini-2.0-flash-lite",  // الخيار الثالث (خفيف جداً)
-      "gemini-1.5-flash"        // احتياطي
-    ];
+    // استخدام موديلات مستقرة ومتنوعة
+    const modelsToTry = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"];
 
     for (const model of modelsToTry) {
       try {
-        console.log(`Trying model: ${model}...`);
-        
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] })
         });
 
-        if (!response.ok) {
-          continue; // لو فشل، جرب اللي بعده
-        }
+        if (!response.ok) continue;
 
         const data = await response.json();
         return data.candidates[0].content.parts[0].text;
-
       } catch (err) {
         console.warn(`Model ${model} failed.`);
       }
     }
-
-    // لو كله فشل
-    setError("All AI models failed. Please check your API Key quota.");
+    setError("Connection Failed. Please check API Key.");
     setStatus('idle');
     return null;
-  };
-
-  // دالة لكشف الموديلات (للتأكد فقط)
-  const checkAvailableModels = async () => {
-    setError('');
-    setStatus('loading');
-    try {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-      const data = await response.json();
-      
-      if (data.models) {
-        const validModels = data.models
-          .filter(m => m.supportedGenerationMethods.includes("generateContent"))
-          .map(m => m.name.replace("models/", ""));
-        
-        alert("✅ Active Models:\n" + validModels.join("\n"));
-        setStatus('idle');
-      } else {
-        alert("❌ Error: " + JSON.stringify(data));
-        setStatus('idle');
-      }
-    } catch (e) {
-      setError(e.message);
-      setStatus('idle');
-    }
   };
 
   const generateChallenge = async () => {
@@ -109,12 +80,20 @@ export default function TheOracle({ organizedData, completedDays }) {
     setFeedback(null);
     setUserAnswer('');
 
+    // --- التعديل هنا: إجبار الذكاء الاصطناعي على الالتزام بالنص ---
     const prompt = `
-      Act as a strict coding mentor.
-      Topic: "${safeTopic}".
-      Sub-topics: ${safeTopics.join(', ')}.
-      Task: Ask ONE tricky conceptual question.
-      Do not answer it.
+      ROLE: You are a strict coding mentor.
+      
+      INPUT DATA (SOURCE OF TRUTH):
+      - Lesson Title: "${lessonTitle}"
+      - Topics: ${topics}
+
+      INSTRUCTIONS:
+      1. Ignore any external curriculum (like ALX, OSSU, or University curriculums).
+      2. Ask ONE conceptual question based ONLY on the "Lesson Title" and "Topics" provided above.
+      3. If the title is "Shell Navigation", ask about cd, ls, pwd. Do NOT ask about Data Structures.
+      4. If the title is "C - Hello World", ask about main function or printf. Do NOT ask about Pointers yet.
+      5. Do not provide the answer. Just the question.
     `;
 
     const text = await callGemini(prompt);
@@ -130,9 +109,11 @@ export default function TheOracle({ organizedData, completedDays }) {
 
     const prompt = `
       Question: "${question}".
-      Answer: "${userAnswer}".
-      Topic: "${safeTopic}".
-      Task: Grade (0-100) and provide feedback JSON: { "score": 0, "feedback": "...", "action": "..." }
+      Student Answer: "${userAnswer}".
+      Context: "${lessonTitle}".
+
+      Task: Grade (0-100) based on accuracy.
+      Return JSON: { "score": 0, "feedback": "...", "action": "..." }
     `;
 
     const text = await callGemini(prompt);
@@ -160,7 +141,7 @@ export default function TheOracle({ organizedData, completedDays }) {
            <h1 className="text-3xl font-black text-white uppercase tracking-tighter">
              The <span className="text-purple-500">Oracle</span>
            </h1>
-           <p className="text-gray-400 text-xs font-mono">MODEL: GEMINI 2.0</p>
+           <p className="text-gray-400 text-xs font-mono">MAIN PLAN TRACKER</p>
         </div>
       </div>
 
@@ -168,17 +149,12 @@ export default function TheOracle({ organizedData, completedDays }) {
         <div className="mb-8 p-6 bg-[#111] border border-red-900/50 rounded-xl text-center">
            <Key size={32} className="text-red-500 mx-auto mb-2" />
            <h3 className="text-white font-bold mb-2">Enter API Key</h3>
-           <input 
-             type="text" 
-             placeholder="Paste Key Here..." 
-             onChange={saveKey}
-             className="bg-black border border-[#333] text-white px-4 py-3 rounded-lg w-full max-w-sm text-center focus:border-purple-500 outline-none font-mono"
-           />
+           <input type="text" placeholder="Paste Key Here..." onChange={saveKey} className="bg-black border border-[#333] text-white px-4 py-3 rounded-lg w-full max-w-sm text-center focus:border-purple-500 outline-none font-mono" />
         </div>
       )}
 
       {error && (
-        <div className="p-4 bg-red-900/20 border border-red-500 text-white rounded-xl mb-6 font-mono text-sm break-words">
+        <div className="p-4 bg-red-900/20 border border-red-500 text-white rounded-xl mb-6 font-mono text-sm">
             <strong>❌ ERROR:</strong> {error}
         </div>
       )}
@@ -190,26 +166,30 @@ export default function TheOracle({ organizedData, completedDays }) {
            {status === 'idle' && (
                <div className="flex-1 flex flex-col items-center justify-center p-8 text-center relative z-10">
                    <Bot size={64} className="text-purple-500/50 mb-4" />
-                   <h2 className="text-2xl font-bold text-white mb-2">Mentor Ready</h2>
-                   <p className="text-gray-400 max-w-md mb-8">
-                      Target: <span className="text-purple-400 font-mono font-bold">"{safeTopic}"</span>
-                   </p>
+                   <h2 className="text-2xl font-bold text-white mb-2">Knowledge Check</h2>
                    
-                   <div className="flex flex-col gap-3 w-full max-w-xs">
-                       <button onClick={generateChallenge} className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-8 rounded-full shadow-[0_0_20px_rgba(147,51,234,0.4)] flex items-center justify-center gap-2">
-                          <Sparkles size={18} /> START TEST
-                       </button>
-                       <button onClick={checkAvailableModels} className="bg-[#222] border border-[#333] hover:bg-[#333] text-gray-400 text-xs py-2 px-4 rounded-full flex items-center justify-center gap-2">
-                          <List size={14} /> Check Models
-                       </button>
+                   {/* مربع التأكيد: عشان تشوف بعينك هو ناوي يسأل في إيه */}
+                   <div className="bg-[#111] border border-purple-900/50 p-4 rounded-xl mb-8 max-w-md w-full text-left relative overflow-hidden">
+                       <div className="absolute top-0 right-0 p-2 opacity-10"><Lock size={40} className="text-purple-500" /></div>
+                       <div className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-1 flex items-center gap-2">
+                           <Target size={12} /> TRACKING MAIN PLAN
+                       </div>
+                       <div className="text-white font-bold font-mono text-lg mb-1">{lessonTitle}</div>
+                       <div className="text-gray-500 text-xs truncate border-t border-[#333] pt-2 mt-2">
+                           Topics: {topics.substring(0, 50)}...
+                       </div>
                    </div>
+
+                   <button onClick={generateChallenge} className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-8 rounded-full shadow-[0_0_20px_rgba(147,51,234,0.4)] flex items-center justify-center gap-2">
+                      <Sparkles size={18} /> GENERATE QUESTION
+                   </button>
                </div>
            )}
 
            {status === 'loading' && (
                <div className="flex-1 flex flex-col items-center justify-center relative z-10">
                    <div className="w-16 h-16 border-4 border-purple-500/30 border-t-purple-500 rounded-full animate-spin mb-4"></div>
-                   <p className="text-purple-400 font-mono text-sm animate-pulse">Processing with Gemini 2.0...</p>
+                   <p className="text-purple-400 font-mono text-sm animate-pulse">Reading Plan Data...</p>
                </div>
            )}
 
@@ -239,6 +219,15 @@ export default function TheOracle({ organizedData, completedDays }) {
                       <div className="bg-[#1a1a1a] border border-[#333] p-6 rounded-xl mb-6">
                           <p className="text-gray-200 leading-relaxed">{feedback.feedback}</p>
                       </div>
+                      {feedback.action && (
+                          <div className="bg-blue-900/10 border border-blue-900/30 p-4 rounded-xl flex items-start gap-3 mb-8">
+                              <BookOpen size={20} className="text-blue-400 mt-1" />
+                              <div>
+                                  <h4 className="text-blue-400 font-bold text-sm mb-1">Recommendation</h4>
+                                  <p className="text-gray-400 text-sm">{feedback.action}</p>
+                              </div>
+                          </div>
+                      )}
                       <button onClick={generateChallenge} className="w-full bg-[#222] hover:bg-[#333] text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2">
                           <RefreshCw size={18} /> NEW QUESTION
                       </button>
@@ -249,4 +238,4 @@ export default function TheOracle({ organizedData, completedDays }) {
       )}
     </div>
   );
-        } 
+}
