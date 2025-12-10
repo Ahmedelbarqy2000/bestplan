@@ -1,17 +1,15 @@
 import React, { useState } from 'react';
-import { Bot, BrainCircuit, Send, AlertTriangle, RefreshCw, Sparkles, BookOpen, Key, Wifi, Target, Lock } from 'lucide-react';
+import { Bot, BrainCircuit, Send, AlertTriangle, RefreshCw, Sparkles, BookOpen, Key, Wifi, List, Target, Lock } from 'lucide-react';
 
 export default function TheOracle({ organizedData, completedDays }) {
   
   const [apiKey, setApiKey] = useState(() => localStorage.getItem('gemini_key') || '');
 
-  // 1. تحديد الدرس الحالي من المنهج الأساسي (plan.json) فقط
+  // 1. تحديد الدرس الحالي
   const currentDay = (() => {
     if (organizedData && organizedData.length > 0) {
-        // نمشي يوم بيوم بالترتيب
         for (const phase of organizedData) {
             for (const day of phase.days) {
-                // أول يوم نلاقيه مش معمول عليه صح، هو ده يومنا
                 if (!completedDays.includes(day.uniqueId)) {
                    return { 
                      ...day, 
@@ -20,17 +18,15 @@ export default function TheOracle({ organizedData, completedDays }) {
                 }
             }
         }
-        // لو كله خلص
         return organizedData[organizedData.length-1]?.days[0] || null;
     }
     return null;
   })();
 
-  // استخراج البيانات بدقة
   const lessonTitle = currentDay?.lessonTitle || "Unknown Lesson";
   const topics = currentDay?.topics && currentDay.topics.length > 0 
                  ? currentDay.topics.join(', ') 
-                 : "Core Concepts of this lesson";
+                 : "Core Concepts";
 
   const [status, setStatus] = useState('idle');
   const [question, setQuestion] = useState('');
@@ -50,8 +46,14 @@ export default function TheOracle({ organizedData, completedDays }) {
       return null;
     }
 
-    // استخدام موديلات مستقرة ومتنوعة
-    const modelsToTry = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"];
+    // --- التحديث هنا: استخدام الموديلات الحديثة من صورتك ---
+    const modelsToTry = [
+      "gemini-2.0-flash",       // الأحدث والأسرع (من صورتك)
+      "gemini-1.5-flash",       // احتياطي
+      "gemini-pro"              // القديم
+    ];
+
+    let lastError = "";
 
     for (const model of modelsToTry) {
       try {
@@ -61,15 +63,21 @@ export default function TheOracle({ organizedData, completedDays }) {
           body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] })
         });
 
-        if (!response.ok) continue;
+        if (!response.ok) {
+            const errData = await response.json();
+            lastError = errData.error?.message || response.statusText;
+            continue; // جرب الموديل اللي بعده
+        }
 
         const data = await response.json();
         return data.candidates[0].content.parts[0].text;
       } catch (err) {
-        console.warn(`Model ${model} failed.`);
+        lastError = err.message;
       }
     }
-    setError("Connection Failed. Please check API Key.");
+    
+    // لو كله فشل، اعرض السبب الحقيقي
+    setError(`Connection Failed: ${lastError}`);
     setStatus('idle');
     return null;
   };
@@ -80,20 +88,18 @@ export default function TheOracle({ organizedData, completedDays }) {
     setFeedback(null);
     setUserAnswer('');
 
-    // --- التعديل هنا: إجبار الذكاء الاصطناعي على الالتزام بالنص ---
+    // --- Strict Prompt ---
     const prompt = `
-      ROLE: You are a strict coding mentor.
-      
-      INPUT DATA (SOURCE OF TRUTH):
-      - Lesson Title: "${lessonTitle}"
+      ROLE: Coding Mentor.
+      SOURCE DATA:
+      - Title: "${lessonTitle}"
       - Topics: ${topics}
 
       INSTRUCTIONS:
-      1. Ignore any external curriculum (like ALX, OSSU, or University curriculums).
-      2. Ask ONE conceptual question based ONLY on the "Lesson Title" and "Topics" provided above.
-      3. If the title is "Shell Navigation", ask about cd, ls, pwd. Do NOT ask about Data Structures.
-      4. If the title is "C - Hello World", ask about main function or printf. Do NOT ask about Pointers yet.
-      5. Do not provide the answer. Just the question.
+      1. Ask ONE tricky conceptual question based ONLY on the Title/Topics above.
+      2. Ignore any external curriculum knowledge (like 'Unit 3' from other courses).
+      3. If the title is C, ask about C. If Git, ask about Git.
+      4. Do NOT answer.
     `;
 
     const text = await callGemini(prompt);
@@ -109,11 +115,11 @@ export default function TheOracle({ organizedData, completedDays }) {
 
     const prompt = `
       Question: "${question}".
-      Student Answer: "${userAnswer}".
+      Answer: "${userAnswer}".
       Context: "${lessonTitle}".
 
-      Task: Grade (0-100) based on accuracy.
-      Return JSON: { "score": 0, "feedback": "...", "action": "..." }
+      Task: Grade (0-100) and feedback JSON: 
+      { "score": 0, "feedback": "...", "action": "..." }
     `;
 
     const text = await callGemini(prompt);
@@ -141,7 +147,7 @@ export default function TheOracle({ organizedData, completedDays }) {
            <h1 className="text-3xl font-black text-white uppercase tracking-tighter">
              The <span className="text-purple-500">Oracle</span>
            </h1>
-           <p className="text-gray-400 text-xs font-mono">MAIN PLAN TRACKER</p>
+           <p className="text-gray-400 text-xs font-mono">GEMINI 2.0 INTEGRATED</p>
         </div>
       </div>
 
@@ -154,7 +160,7 @@ export default function TheOracle({ organizedData, completedDays }) {
       )}
 
       {error && (
-        <div className="p-4 bg-red-900/20 border border-red-500 text-white rounded-xl mb-6 font-mono text-sm">
+        <div className="p-4 bg-red-900/20 border border-red-500 text-white rounded-xl mb-6 font-mono text-sm break-words">
             <strong>❌ ERROR:</strong> {error}
         </div>
       )}
@@ -168,15 +174,15 @@ export default function TheOracle({ organizedData, completedDays }) {
                    <Bot size={64} className="text-purple-500/50 mb-4" />
                    <h2 className="text-2xl font-bold text-white mb-2">Knowledge Check</h2>
                    
-                   {/* مربع التأكيد: عشان تشوف بعينك هو ناوي يسأل في إيه */}
+                   {/* Context Box */}
                    <div className="bg-[#111] border border-purple-900/50 p-4 rounded-xl mb-8 max-w-md w-full text-left relative overflow-hidden">
                        <div className="absolute top-0 right-0 p-2 opacity-10"><Lock size={40} className="text-purple-500" /></div>
                        <div className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-1 flex items-center gap-2">
-                           <Target size={12} /> TRACKING MAIN PLAN
+                           <Target size={12} /> TRACKING
                        </div>
                        <div className="text-white font-bold font-mono text-lg mb-1">{lessonTitle}</div>
                        <div className="text-gray-500 text-xs truncate border-t border-[#333] pt-2 mt-2">
-                           Topics: {topics.substring(0, 50)}...
+                           {topics.substring(0, 50)}...
                        </div>
                    </div>
 
@@ -189,7 +195,7 @@ export default function TheOracle({ organizedData, completedDays }) {
            {status === 'loading' && (
                <div className="flex-1 flex flex-col items-center justify-center relative z-10">
                    <div className="w-16 h-16 border-4 border-purple-500/30 border-t-purple-500 rounded-full animate-spin mb-4"></div>
-                   <p className="text-purple-400 font-mono text-sm animate-pulse">Reading Plan Data...</p>
+                   <p className="text-purple-400 font-mono text-sm animate-pulse">Consulting the Oracle...</p>
                </div>
            )}
 
@@ -238,4 +244,4 @@ export default function TheOracle({ organizedData, completedDays }) {
       )}
     </div>
   );
-}
+        } 
